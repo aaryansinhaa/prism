@@ -334,6 +334,12 @@ curl -X POST \
 
 ---
 
+## 14. Benchmarks
+
+Baseline (bare-metal) latency and throughput numbers, plus reproduction steps, now live in `BENCHMARKS.md`. Treat those as source-of-truth when evaluating future runtime overhead.
+
+---
+
 # Closing Vision
 
 PRISM aims to make model deployment as simple as:
