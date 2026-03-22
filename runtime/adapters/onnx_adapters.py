@@ -83,15 +83,37 @@ class ONNXModel(BaseModel):
 			raise ModelPredictError("ONNXModel expects a mapping of input tensor names.")
 
 		feed_dict: Dict[str, Any] = {}
-		for name in self._input_names:
+		# Build feed dict with basic coercions to improve UX for JSON callers.
+		for idx, name in enumerate(self._input_names):
 			if name not in payload:
 				raise ModelPredictError(f"Missing input '{name}' for ONNX model.")
-			feed_dict[name] = np.asarray(payload[name])
+			arr = np.asarray(payload[name])
+			# If model expects float input, coerce numeric arrays to float32.
+			# Determine expected rank from session metadata when available.
+			try:
+				expected_shape = self._session.get_inputs()[idx].shape
+				expected_rank = len(expected_shape) if expected_shape is not None else arr.ndim
+			except Exception:
+				expected_rank = arr.ndim
+
+			# If user supplied a 1-D list but model expects 2-D (N,1), expand dims.
+			if arr.ndim == 1 and expected_rank > 1:
+				arr = np.expand_dims(arr, axis=1)
+
+			# Coerce to float32 where appropriate (most ONNX regressors/classifiers use float).
+			if arr.dtype != np.float32:
+				try:
+					arr = arr.astype(np.float32)
+				except Exception:
+					# leave as-is; runtime will raise a descriptive error
+					pass
+
+			feed_dict[name] = arr
 
 		try:
 			outputs = self._session.run(self._output_names, feed_dict)
 		except Exception as exc:  # noqa: BLE001
-			raise ModelPredictError("ONNX inference failed") from exc
+			raise ModelPredictError(f"ONNX inference failed: {exc}") from exc
 
 		predictions = {
 			name: _to_serializable(value)
