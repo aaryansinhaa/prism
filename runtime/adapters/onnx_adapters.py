@@ -122,5 +122,22 @@ class ONNXModel(BaseModel):
 
 		return {"predictions": predictions}
 
+	def validate_input(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+		if not isinstance(input_data, dict):
+			raise ModelPredictError("ONNXModel expects a JSON object payload.")
+
+		payload = dict(input_data)
+		if len(self._input_names) == 1:
+			input_name = self._input_names[0]
+			for alias in ("input", "inputs"):
+				if alias in payload and input_name not in payload:
+					payload[input_name] = payload[alias]
+
+		missing = [name for name in self._input_names if name not in payload]
+		if missing:
+			raise ModelPredictError(f"Missing required ONNX input(s): {', '.join(missing)}")
+
+		return payload
+
 
 __all__ = ["ONNXModel"]

@@ -38,6 +38,15 @@ class BaseModel(ABC):
 	def predict(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
 		"""Run inference and return a JSON-serializable dict."""
 
+	def validate_input(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+		"""Validate and normalize an inference payload.
+
+		Adapters can override this to enforce framework-specific schemas.
+		The default implementation accepts the payload unchanged.
+		"""
+
+		return input_data
+
 
 __all__ = [
 	"BaseModel",

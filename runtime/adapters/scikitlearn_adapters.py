@@ -6,6 +6,7 @@ import pickle
 from pathlib import Path
 from typing import Any, Dict
 
+import joblib
 import numpy as np
 
 from .base import BaseModel, ModelLoadError, ModelPredictError
@@ -41,8 +42,12 @@ class SklearnModel(BaseModel):
 
 		try:
 			with path.open("rb") as handle:
-				estimator = pickle.load(handle)
-		except (OSError, pickle.PickleError) as exc:
+				try:
+					estimator = joblib.load(handle)
+				except Exception:
+					handle.seek(0)
+					estimator = pickle.load(handle)
+		except (OSError, pickle.PickleError, ValueError, EOFError, TypeError) as exc:
 			raise ModelLoadError(f"Failed to load sklearn artifact from {path}") from exc
 
 		if not hasattr(estimator, "predict"):
@@ -73,6 +78,19 @@ class SklearnModel(BaseModel):
 			result["probabilities"] = _to_list(probabilities)
 
 		return result
+
+	def validate_input(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+		if not isinstance(input_data, dict):
+			raise ModelPredictError("SklearnModel expects a JSON object payload.")
+
+		payload = dict(input_data)
+		if "inputs" not in payload and "input" in payload:
+			payload["inputs"] = payload["input"]
+
+		if "inputs" not in payload:
+			raise ModelPredictError("SklearnModel expects an 'input' or 'inputs' field.")
+
+		return payload
 
 
 __all__ = ["SklearnModel"]
