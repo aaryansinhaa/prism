@@ -45,13 +45,13 @@ async def dashboard() -> str:
     """Render main dashboard with all deployed models."""
     dashboard_dto = DashboardService.build_dashboard_dto()
     html_content = dashboard_page_with_cards(dashboard_dto.model_cards, dashboard_dto.has_models)
-    return base_layout("PRISM - Dashboard", html_content, show_sidebar=True)
+    return base_layout("PRISM - Dashboard", html_content, show_sidebar=True, active_nav="dashboard")
 
 
 @router.get("/upload-model", response_class=HTMLResponse)
 async def upload_model_ui() -> str:
     """Render upload model page."""
-    return base_layout("PRISM - Upload Model", upload_model_page(), show_sidebar=True)
+    return base_layout("PRISM - Upload Model", upload_model_page(), show_sidebar=True, active_nav="upload")
 
 
 @router.get("/model-logs", response_class=HTMLResponse)
@@ -86,7 +86,7 @@ async def model_logs_ui() -> str:
     <div id="modal-logs"></div>
 </div>
 """
-    return base_layout("PRISM - Model Logs", logs_content, show_sidebar=True)
+    return base_layout("PRISM - Model Logs", logs_content, show_sidebar=True, active_nav="logs")
 
 
 @router.get("/api/model-logs", response_class=HTMLResponse)
@@ -103,17 +103,17 @@ async def restart_model(container_id: str = Form(...)) -> str:
         if success:
             return f"""<div class="model-card">
     <div class="alert-success mb-4">✓ Container restarted successfully!</div>
-    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+    <a href="/" class="btn-secondary">Return to Dashboard</a>
 </div>"""
         else:
             return f"""<div class="model-card">
     <div class="alert-warning mb-4">⚠ {message}</div>
-    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+    <a href="/" class="btn-secondary">Return to Dashboard</a>
 </div>"""
     except Exception as e:
         return f"""<div class="model-card">
     <div class="alert-error mb-4">✗ Error restarting container: {str(e)}</div>
-    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+    <a href="/" class="btn-secondary">Return to Dashboard</a>
 </div>"""
 
 
@@ -126,18 +126,18 @@ async def delete_model(model_id: str = Form(...), container_id: str = Form(...))
         if not result_dto.success:
             return f"""<div class="model-card">
     <div class="alert-error mb-4">✗ {result_dto.message}</div>
-    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+    <a href="/" class="btn-secondary">Return to Dashboard</a>
 </div>"""
 
         return f"""<div class="bg-white rounded-lg p-6 text-center">
     <div class="alert-success mb-4">✓ Model '{model_id}' deleted successfully!</div>
     <p class="text-gray-600 mb-4">Container has been stopped and removed.</p>
-    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+    <a href="/" class="btn-secondary">Return to Dashboard</a>
 </div>"""
     except Exception as e:
         return f"""<div class="model-card">
     <div class="alert-error mb-4">✗ Error deleting model: {str(e)}</div>
-    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+    <a href="/" class="btn-secondary">Return to Dashboard</a>
 </div>"""
 
 
@@ -150,12 +150,12 @@ async def kill_all_models() -> str:
         return f"""<div class="bg-white rounded-lg p-6 text-center">
     <div class="alert-success mb-4">✓ {result_dto.message}</div>
     <p class="text-gray-600 mb-4">All containers have been stopped and removed.</p>
-    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+    <a href="/" class="btn-secondary">Return to Dashboard</a>
 </div>"""
     except Exception as e:
         return f"""<div class="bg-white rounded-lg p-6">
     <div class="alert-error mb-4">✗ Error deleting all models: {str(e)}</div>
-    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+    <a href="/" class="btn-secondary">Return to Dashboard</a>
 </div>"""
 
 
