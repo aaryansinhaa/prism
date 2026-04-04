@@ -34,3 +34,27 @@ class UploadAndRunResponse(UploadResponse):
     tunnel_url: str | None = Field(None, description="Public tunnel URL (if tunnel enabled)")
     registry: ContainerRegistry = Field(..., description="Registry record")
     registry_path: str = Field(..., description="Path to registry file")
+
+
+# Import clean architecture DTOs
+from app.dto.dto import (
+    ContainerLogsDTO,
+    DashboardDTO,
+    DeleteResultDTO,
+    DeploymentResultDTO,
+    HtmlResponseDTO,
+    ModelCardDTO,
+    UploadModelDTO,
+)
+
+__all__ = [
+    "UploadResponse",
+    "ContainerRegistry",
+    "UploadModelDTO",
+    "ModelCardDTO",
+    "DashboardDTO",
+    "DeploymentResultDTO",
+    "ContainerLogsDTO",
+    "DeleteResultDTO",
+    "HtmlResponseDTO",
+]

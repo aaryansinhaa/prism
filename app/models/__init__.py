@@ -110,3 +110,24 @@ async def ingest_upload_and_build(file: UploadFile) -> dict[str, Any]:
         "build_context": str(model_dir),
         "build_output": build_output,
     }
+
+
+# Import domain models for clean architecture
+from app.models.model import (
+    ContainerStatus,
+    ModelMetadata,
+    PredictionRequest,
+    PredictionResult,
+)
+
+__all__ = [
+    "ModelMetadata",
+    "ContainerStatus",
+    "PredictionRequest",
+    "PredictionResult",
+    "upload_root",
+    "save_uploaded_model",
+    "prepare_model_build_context",
+    "validate_upload_extension",
+    "ingest_upload_and_build",
+]

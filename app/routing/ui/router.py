@@ -12,23 +12,151 @@ from fastapi.responses import HTMLResponse
 
 from app.core import run_model_container
 from app.core.tunnel import start_tunnel
+from app.dto.dto import (
+    HtmlResponseDTO,
+    ModelCardDTO,
+)
 from app.models import ingest_upload_and_build, validate_upload_extension
 from app.registry.container_registry import register_container, registry_path
 from app.routing.ui.templates import (
     base_layout,
+    dashboard_page_with_cards,
+    model_logs_modal,
     predict_page,
     prediction_error_component,
     prediction_result_component,
     upload_page,
+    upload_model_page,
     upload_success_response,
 )
+from app.services.dashboard_service import (
+    ContainerLogsService,
+    ContainerService,
+    DashboardService,
+    ModelRegistryService,
+)
+from app.utils.docker_utils import delete_container, get_container_logs
 
 router = APIRouter(tags=["frontend"])
 
 
 @router.get("/", response_class=HTMLResponse)
-async def upload_ui() -> str:
-    return base_layout("PRISM - Model Upload", upload_page())
+async def dashboard() -> str:
+    """Render main dashboard with all deployed models."""
+    dashboard_dto = DashboardService.build_dashboard_dto()
+    html_content = dashboard_page_with_cards(dashboard_dto.model_cards, dashboard_dto.has_models)
+    return base_layout("PRISM - Dashboard", html_content, show_sidebar=True)
+
+
+@router.get("/upload-model", response_class=HTMLResponse)
+async def upload_model_ui() -> str:
+    """Render upload model page."""
+    return base_layout("PRISM - Upload Model", upload_model_page(), show_sidebar=True)
+
+
+@router.get("/model-logs", response_class=HTMLResponse)
+async def model_logs_ui() -> str:
+    """Render model logs view."""
+    models = ModelRegistryService.load_all_models()
+
+    log_entries = []
+    for model_id, metadata in sorted(models.items()):
+        container_id = metadata.container_id
+        log_entries.append(f"""
+    <div class="bg-white rounded-lg p-4 border border-gray-200 mb-4 cursor-pointer hover:border-blue-500" onclick="htmx.ajax('GET', '/api/model-logs?container_id={container_id}', '#modal-logs')">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="font-semibold text-gray-900">{model_id}</p>
+                <p class="text-xs text-gray-600">Container: {container_id[:12]}</p>
+            </div>
+            <span class="text-gray-400">→</span>
+        </div>
+    </div>
+""")
+
+    logs_content = f"""
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">📋 Model Logs</h1>
+    <p class="text-gray-600 mb-8">View logs from your deployed model containers</p>
+
+    <div class="space-y-2">
+        {("".join(log_entries) if log_entries else '<div class="alert-info">No models deployed yet. Upload one from the Upload Model page.</div>')}
+    </div>
+
+    <div id="modal-logs"></div>
+</div>
+"""
+    return base_layout("PRISM - Model Logs", logs_content, show_sidebar=True)
+
+
+@router.get("/api/model-logs", response_class=HTMLResponse)
+async def get_model_logs(container_id: str) -> str:
+    """Get logs for a specific container."""
+    return model_logs_modal(container_id)
+
+
+@router.post("/api/restart-model", response_class=HTMLResponse)
+async def restart_model(container_id: str = Form(...)) -> str:
+    """Restart a model container."""
+    try:
+        success, message = await ContainerService.restart_model_async(container_id)
+        if success:
+            return f"""<div class="model-card">
+    <div class="alert-success mb-4">✓ Container restarted successfully!</div>
+    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+</div>"""
+        else:
+            return f"""<div class="model-card">
+    <div class="alert-warning mb-4">⚠ {message}</div>
+    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+</div>"""
+    except Exception as e:
+        return f"""<div class="model-card">
+    <div class="alert-error mb-4">✗ Error restarting container: {str(e)}</div>
+    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+</div>"""
+
+
+@router.delete("/api/delete-model", response_class=HTMLResponse)
+async def delete_model(model_id: str = Form(...), container_id: str = Form(...)) -> str:
+    """Delete a model and stop its container."""
+    try:
+        result_dto = await ContainerService.delete_model_async(model_id, container_id)
+
+        if not result_dto.success:
+            return f"""<div class="model-card">
+    <div class="alert-error mb-4">✗ {result_dto.message}</div>
+    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+</div>"""
+
+        return f"""<div class="bg-white rounded-lg p-6 text-center">
+    <div class="alert-success mb-4">✓ Model '{model_id}' deleted successfully!</div>
+    <p class="text-gray-600 mb-4">Container has been stopped and removed.</p>
+    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+</div>"""
+    except Exception as e:
+        return f"""<div class="model-card">
+    <div class="alert-error mb-4">✗ Error deleting model: {str(e)}</div>
+    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+</div>"""
+
+
+@router.delete("/api/kill-all-models", response_class=HTMLResponse)
+async def kill_all_models() -> str:
+    """Delete all models and stop all containers."""
+    try:
+        result_dto = await ContainerService.kill_all_models_async()
+
+        return f"""<div class="bg-white rounded-lg p-6 text-center">
+    <div class="alert-success mb-4">✓ {result_dto.message}</div>
+    <p class="text-gray-600 mb-4">All containers have been stopped and removed.</p>
+    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+</div>"""
+    except Exception as e:
+        return f"""<div class="bg-white rounded-lg p-6">
+    <div class="alert-error mb-4">✗ Error deleting all models: {str(e)}</div>
+    <button hx-get="/" hx-target="body" class="btn-secondary">Return to Dashboard</button>
+</div>"""
 
 
 @router.post("/api/upload-and-run-ui", response_class=HTMLResponse)
@@ -66,12 +194,14 @@ async def upload_and_run_ui(
             tunnel_url=tunnel_url,
         )
 
-        return upload_success_response(
+        success_html = upload_success_response(
             model_id=model_id,
             port=host_port,
             tunnel_url=tunnel_url,
             tunnel_warning=tunnel_warning,
         )
+        # Add button to return to dashboard
+        return success_html + '<div class="mt-6"><a href="/" hx-boost="true" class="btn-secondary w-full text-center block">Return to Dashboard</a></div>'
     except HTTPException as exc:
         return f"<div class=\"alert-error\">Error: {exc.detail}</div>"
     except RuntimeError as exc:

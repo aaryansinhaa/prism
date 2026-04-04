@@ -27,21 +27,21 @@ class TestUploadFormComponent:
     
     def test_upload_ui_contains_upload_form(self):
         """UT: Upload page contains form with file input."""
-        response = client.get("/")
-        assert "🚀 PRISM" in response.text
+        response = client.get("/upload-model")
+        assert "PRISM" in response.text
         assert "input" in response.text
         assert 'type="file"' in response.text
         assert 'accept=".onnx,.pkl,.pickle,.joblib"' in response.text
     
     def test_upload_ui_contains_tunnel_checkbox(self):
         """UT: Upload form has tunnel enable checkbox."""
-        response = client.get("/")
+        response = client.get("/upload-model")
         assert 'id="enableTunnel"' in response.text
         assert "Enable Public Tunnel" in response.text
     
     def test_upload_ui_has_htmx_integration(self):
         """UT: Form uses HTMX for submission."""
-        response = client.get("/")
+        response = client.get("/upload-model")
         assert "htmx.org" in response.text  # HTMX CDN
         assert 'hx-post="/api/upload-and-run-ui"' in response.text
         assert 'hx-target="#response"' in response.text
@@ -250,7 +250,7 @@ class TestHTMLComponentsIntegration:
     
     def test_components_use_semantic_html(self):
         """IT: Components use semantic HTML elements."""
-        response = client.get("/")
+        response = client.get("/upload-model")
         assert "<form" in response.text
         assert "<button" in response.text
         assert "<label" in response.text
@@ -325,7 +325,7 @@ class TestHTMXAttributes:
     
     def test_upload_form_has_hx_post(self):
         """Test form has hx-post for AJAX submission."""
-        response = client.get("/")
+        response = client.get("/upload-model")
         assert 'hx-post="/api/upload-and-run-ui"' in response.text
     
     def test_predict_form_has_hx_post(self):
@@ -335,7 +335,7 @@ class TestHTMXAttributes:
     
     def test_loading_indicator_has_htmx_class(self):
         """Test loading indicators use htmx-indicator class."""
-        response = client.get("/")
+        response = client.get("/upload-model")
         assert 'class="htmx-indicator' in response.text or "htmx-indicator" in response.text
 
 
@@ -349,7 +349,7 @@ class TestAccessibility:
     
     def test_upload_page_has_form_labels(self):
         """Test form has proper labels for accessibility."""
-        response = client.get("/")
+        response = client.get("/upload-model")
         assert "<label" in response.text
         assert "for=" in response.text
     

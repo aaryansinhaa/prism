@@ -5,8 +5,32 @@ from __future__ import annotations
 import json
 from typing import Any, Dict
 
+from app.utils.docker_utils import escape_html
 
-def base_layout(title: str, content: str) -> str:
+
+def base_layout(title: str, content: str, show_sidebar: bool = False) -> str:
+    sidebar = ""
+    if show_sidebar:
+        sidebar = """
+    <div class="fixed left-0 top-0 w-64 h-screen bg-gray-900 text-white shadow-lg flex flex-col">
+        <div class="p-6 border-b border-gray-700">
+            <h1 class="text-2xl font-bold">🚀 PRISM</h1>
+            <p class="text-xs text-gray-400 mt-1">Model Control Center</p>
+        </div>
+        <nav class="flex-1 p-4 space-y-3">
+            <a href="/dashboard" class="block px-4 py-3 rounded-lg transition-colors bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 text-white font-medium text-sm">📊 Dashboard</a>
+            <a href="/upload-model" class="block px-4 py-3 rounded-lg transition-colors hover:bg-gray-800 text-gray-300 font-medium text-sm">📤 Upload Model</a>
+            <a href="/model-logs" class="block px-4 py-3 rounded-lg transition-colors hover:bg-gray-800 text-gray-300 font-medium text-sm">📋 Model Logs</a>
+        </nav>
+        <div class="p-4 border-t border-gray-700 text-xs text-gray-400">
+            <p>v1.0 Beta</p>
+        </div>
+    </div>
+    <div class="ml-64">
+    """
+
+    closing_div = "</div>" if show_sidebar else ""
+
     return f"""<!DOCTYPE html>
 <html lang=\"en\">
 <head>
@@ -15,10 +39,11 @@ def base_layout(title: str, content: str) -> str:
     <title>{title}</title>
     <script src=\"https://cdn.tailwindcss.com\"></script>
     <script src=\"https://unpkg.com/htmx.org@1.9.10\"></script>
+    <script src=\"https://unpkg.com/htmx.org/dist/ext/remove-me.js\"></script>
     <style>
         .gradient-bg {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }}
-        .card {{ transition: all .2s ease; }}
-        .card:hover {{ transform: translateY(-2px); }}
+        .card {{ transition: all .2s ease; border-radius: 12px; }}
+        .card:hover {{ transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }}
         .btn-primary {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -27,7 +52,9 @@ def base_layout(title: str, content: str) -> str:
             border-radius: 8px;
             font-weight: 600;
             cursor: pointer;
+            transition: all .2s ease;
         }}
+        .btn-primary:hover {{ transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(102, 126, 234, 0.4); }}
         .btn-secondary {{
             background: #f3f4f6;
             color: #374151;
@@ -39,16 +66,34 @@ def base_layout(title: str, content: str) -> str:
             text-decoration: none;
             display: inline-block;
             text-align: center;
+            transition: all .2s ease;
         }}
+        .btn-secondary:hover {{ background: #e5e7eb; }}
+        .btn-danger {{ background: #fecaca; color: #dc2626; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }}
+        .btn-danger:hover {{ background: #fca5a5; }}
+        .status-badge {{ display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }}
+        .status-running {{ background: #dcfce7; color: #166534; }}
+        .status-stopped {{ background: #fee2e2; color: #991b1b; }}
         .alert-error {{ background: #fee; border: 1px solid #fcc; color: #c33; padding: 12px; border-radius: 8px; }}
         .alert-success {{ background: #efe; border: 1px solid #cfc; color: #3c3; padding: 12px; border-radius: 8px; }}
         .alert-warning {{ background: #fff8e6; border: 1px solid #f4d27a; color: #8a6d1d; padding: 12px; border-radius: 8px; }}
+        .alert-info {{ background: #e0f2fe; border: 1px solid #7dd3fc; color: #0c4a6e; padding: 12px; border-radius: 8px; }}
         .spinner {{ width: 22px; height: 22px; border: 3px solid #ddd; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; }}
         @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+        .model-card {{ background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; transition: all .2s ease; }}
+        .model-card:hover {{ border-color: #667eea; }}
+        .status-indicator {{ display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }}
+        .status-indicator.running {{ background: #10b981; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }}
+        .status-indicator.stopped {{ background: #ef4444; }}
+        @keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: .5; }} }}
     </style>
 </head>
-<body class=\"gradient-bg min-h-screen flex items-center justify-center py-12 px-4\">
-    <div class=\"w-full max-w-2xl\">{content}</div>
+<body {("class=\"bg-gray-50\"" if show_sidebar else "class=\"gradient-bg min-h-screen flex items-center justify-center py-12 px-4\"")}>
+    {sidebar}
+    <div {("class=\"p-8\"" if show_sidebar else "class=\"w-full max-w-2xl\"")}>
+        {content}
+    </div>
+    {closing_div}
     <script>
       function copyToClipboard(text, element) {{
         navigator.clipboard.writeText(text).then(() => {{
@@ -57,6 +102,13 @@ def base_layout(title: str, content: str) -> str:
           setTimeout(() => element.textContent = original, 1200);
         }});
       }}
+      
+      // HTMX confirmation handler
+      htmx.on('htmx:confirm', function(e) {{
+        if (!window.confirm(e.detail.question)) {{
+          e.preventDefault();
+        }}
+      }});
     </script>
 </body>
 </html>"""
@@ -202,3 +254,158 @@ def prediction_error_component(error: str, model_id: str) -> str:
   <button hx-get=\"/predict?model_id={model_id}\" hx-target=\"body\" hx-replace=\"outerHTML swap:1s\" class=\"btn-secondary flex-1\">Try Again</button>
   <a href=\"/\" class=\"btn-secondary flex-1 text-center\">Upload New Model</a>
 </div>"""
+
+
+def dashboard_page_with_cards(model_cards: list, has_models: bool) -> str:
+    """Render dashboard with model card DTOs."""
+    if not has_models:
+        empty_state = """
+    <div class=\"text-center py-12\">
+        <div class=\"text-6xl mb-4\">📦</div>
+        <h2 class=\"text-2xl font-bold text-gray-900 mb-2\">No Models Deployed</h2>
+        <p class=\"text-gray-600 mb-6\">Get started by uploading your first ML model</p>
+        <a href=\"/upload-model\" class=\"btn-primary inline-block\">Upload Model</a>
+    </div>
+"""
+        return empty_state
+
+    card_html = []
+    for card in model_cards:
+        tunnel_block = ""
+        if card.tunnel_url:
+            tunnel_block = f'''
+            <div class="bg-green-50 border border-green-200 rounded-lg p-3 mt-4">
+                <p class="text-xs font-medium text-green-900 mb-2">🌐 Public Tunnel</p>
+                <code class="text-xs bg-white p-2 rounded border border-green-200 block overflow-auto mb-2">{card.tunnel_url}</code>
+                <button type="button" class="btn-secondary text-xs" onclick="copyToClipboard('{card.tunnel_url}', this)">Copy Link</button>
+            </div>
+'''
+
+        card_html.append(f"""
+    <div class="model-card">
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex-1">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="status-indicator {card.indicator_class}\"></span>
+                    <h3 class="font-bold text-lg text-gray-900 break-all">{card.model_id}</h3>
+                </div>
+                <span class="status-badge {card.status_class}">{card.status_text}</span>
+            </div>
+            <button hx-post="/api/restart-model" hx-vals='{{"container_id": "{card.container_id}"}}' hx-target="closest .model-card" hx-swap="outerHTML swap:1s" class="btn-secondary text-xs whitespace-nowrap">🔄 Restart</button>
+        </div>
+
+        <div class="bg-gray-50 p-3 rounded-lg mb-4 text-sm space-y-2">
+            <div><span class="text-gray-600">Container:</span> <code class="bg-white px-2 py-1 rounded text-xs font-mono">{card.container_id[:12]}</code></div>
+            <div><span class="text-gray-600">Port:</span> <span class="font-mono text-gray-900">{card.port}</span></div>
+        </div>
+
+        <div class="space-y-2 mb-4">
+            <button type="button" class="w-full btn-secondary text-sm text-left" onclick="copyToClipboard('{card.predict_url}', this)">
+                <span class="text-xs">UI Prediction URL</span><br><code class="text-xs font-mono break-all">{card.predict_url}</code>
+            </button>
+            <button type="button" class="w-full btn-secondary text-sm text-left" onclick="copyToClipboard('{card.api_url}', this)">
+                <span class="text-xs">API Endpoint</span><br><code class="text-xs font-mono break-all">{card.api_url}</code>
+            </button>
+        </div>
+
+        {tunnel_block}
+
+        <div class="flex gap-2 mt-4 pt-4 border-t border-gray-200">
+            <a href="/predict?model_id={card.model_id}" class="btn-secondary flex-1 text-center text-xs">Predict</a>
+            <button hx-get="/api/model-logs?container_id={card.container_id}" hx-target="#modal-logs-{card.model_id}" class="btn-secondary flex-1 text-xs" data-modal="logs">View Logs</button>
+            <button hx-delete="/api/delete-model" hx-vals='{{"model_id": "{card.model_id}", "container_id": "{card.container_id}"}}' hx-target="closest .model-card" hx-swap="outerHTML swap:0.5s" hx-confirm="Delete this model and its container? This cannot be undone." class="btn-danger flex-1 text-xs">Delete</button>
+        </div>
+    </div>
+""")
+
+    return f"""
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">📊 Control Center</h1>
+    <p class="text-gray-600">Manage and monitor your deployed ML models</p>
+</div>
+
+<div class="bg-white rounded-lg p-4 mb-8 border border-blue-200 bg-blue-50 flex items-center justify-between">
+    <p class="text-sm text-blue-900"><strong>Tip:</strong> Click on a model card to expand details or use the buttons above to upload new models or check logs.</p>
+    {('<button hx-delete="/api/kill-all-models" hx-target="body" hx-confirm="⚠️ WARNING: This will delete ALL models and stop all containers! This action cannot be undone. Are you sure?" class="btn-danger text-xs whitespace-nowrap">🔥 Kill All</button>' if has_models else '')}
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    {"".join(card_html)}
+</div>
+
+<div id="modal-logs-container" class="hidden"></div>
+"""
+
+
+def model_logs_modal(container_id: str) -> str:
+    """Render modal with container logs."""
+    from app.services.dashboard_service import ContainerLogsService
+    
+    logs_dto = ContainerLogsService.get_container_logs_dto(container_id, lines=50)
+    
+    if logs_dto.has_error:
+        logs_content = f"Error retrieving logs: {logs_dto.error}"
+    else:
+        logs_content = logs_dto.logs
+    
+    safe_logs = logs_content.replace("<", "&lt;").replace(">", "&gt;")
+    return f"""
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg max-w-2xl w-full max-h-96 flex flex-col">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Container Logs</h2>
+            <button type="button" class="text-gray-500 hover:text-gray-700" onclick="this.closest('.fixed').remove()">✕</button>
+        </div>
+        <div class="flex-1 overflow-auto bg-gray-900 p-4">
+            <pre class="text-green-400 font-mono text-xs whitespace-pre-wrap break-words">{safe_logs}</pre>
+        </div>
+        <div class="p-4 border-t border-gray-200 flex gap-2">
+            <button type="button" class="btn-secondary flex-1" onclick="navigator.clipboard.writeText(`{logs_content.replace(chr(96), chr(92)+chr(96))}`).then(() => alert('Logs copied!'))">Copy Logs</button>
+            <button type="button" class="btn-secondary flex-1" onclick="this.closest('.fixed').remove()">Close</button>
+        </div>
+    </div>
+</div>
+"""
+
+
+def upload_model_page() -> str:
+    """Render upload model page with sidebar."""
+    return """
+<div class="card bg-white rounded-2xl shadow-2xl p-8 max-w-2xl mx-auto">
+  <h1 class="text-3xl font-bold mb-2">📤 Upload New Model</h1>
+  <p class="text-gray-600 text-sm mb-8">Deploy a new ML model to your control center</p>
+
+  <form hx-post="/api/upload-and-run-ui" hx-target="#response" hx-indicator="#loading" enctype="multipart/form-data" class="space-y-6">
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-3">Select Model File</label>
+      <input type="file" name="file" id="modelFile" accept=".onnx,.pkl,.pickle,.joblib" required onchange="document.getElementById('fileName').textContent=this.files[0]?.name||'No file selected'" class="w-full text-sm">
+      <p id="fileName" class="text-xs text-gray-500 mt-2">No file selected</p>
+      <p class="text-xs text-gray-500 mt-2">Supported: ONNX (.onnx), Scikit-learn (.pkl, .pickle), joblib (.joblib)</p>
+    </div>
+
+    <div class="flex items-center gap-3 bg-gray-50 p-4 rounded-lg">
+      <input type="checkbox" id="enableTunnel" name="enable_tunnel" class="w-5 h-5">
+      <label for="enableTunnel" class="text-sm font-medium text-gray-700">Enable Public Tunnel</label>
+      <span class="text-xs text-gray-500 ml-auto">Share prediction link publicly</span>
+    </div>
+
+    <button type="submit" class="btn-primary w-full">Upload & Deploy</button>
+  </form>
+
+  <div id="loading" class="htmx-indicator text-center py-8">
+    <div class="spinner mx-auto mb-3"></div>
+    <p class="text-gray-600 text-sm">Deploying your model...</p>
+  </div>
+
+  <div id="response" class="mt-8"></div>
+
+  <div class="mt-8 pt-8 border-t border-gray-200">
+    <p class="text-sm text-gray-600 mb-4"><strong>Need help?</strong></p>
+    <ul class="text-sm text-gray-600 space-y-2 list-disc list-inside">
+      <li>Your model must have a /predict endpoint</li>
+      <li>Accept JSON input and return JSON output</li>
+      <li>Maximum file size: 500MB</li>
+    </ul>
+  </div>
+</div>
+"""
