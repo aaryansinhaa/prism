@@ -12,17 +12,17 @@ def base_layout(title: str, content: str, show_sidebar: bool = False) -> str:
     sidebar = ""
     if show_sidebar:
         sidebar = """
-    <div class="fixed left-0 top-0 w-64 h-screen bg-gray-900 text-white shadow-lg flex flex-col">
-        <div class="p-6 border-b border-gray-700">
+    <div class="fixed left-0 top-0 w-64 h-screen bg-white text-black shadow-lg flex flex-col border-r-2 border-black">
+        <div class="p-6 border-b-2 border-black">
             <h1 class="text-2xl font-bold">🚀 PRISM</h1>
-            <p class="text-xs text-gray-400 mt-1">Model Control Center</p>
+            <p class="text-xs text-gray-600 mt-1">Model Control Center</p>
         </div>
         <nav class="flex-1 p-4 space-y-3">
-            <a href="/dashboard" class="block px-4 py-3 rounded-lg transition-colors bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 text-white font-medium text-sm">📊 Dashboard</a>
-            <a href="/upload-model" class="block px-4 py-3 rounded-lg transition-colors hover:bg-gray-800 text-gray-300 font-medium text-sm">📤 Upload Model</a>
-            <a href="/model-logs" class="block px-4 py-3 rounded-lg transition-colors hover:bg-gray-800 text-gray-300 font-medium text-sm">📋 Model Logs</a>
+            <a href="/dashboard" class="block px-4 py-3 rounded-md transition-colors bg-black text-white hover:opacity-80 font-medium text-sm">📊 Dashboard</a>
+            <a href="/upload-model" class="block px-4 py-3 rounded-md transition-colors hover:bg-gray-100 text-black font-medium text-sm border border-black">📤 Upload Model</a>
+            <a href="/model-logs" class="block px-4 py-3 rounded-md transition-colors hover:bg-gray-100 text-black font-medium text-sm border border-black">📋 Model Logs</a>
         </nav>
-        <div class="p-4 border-t border-gray-700 text-xs text-gray-400">
+        <div class="p-4 border-t-2 border-black text-xs text-gray-700">
             <p>v1.0 Beta</p>
         </div>
     </div>
@@ -41,26 +41,26 @@ def base_layout(title: str, content: str, show_sidebar: bool = False) -> str:
     <script src=\"https://unpkg.com/htmx.org@1.9.10\"></script>
     <script src=\"https://unpkg.com/htmx.org/dist/ext/remove-me.js\"></script>
     <style>
-        .gradient-bg {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }}
-        .card {{ transition: all .2s ease; border-radius: 12px; }}
-        .card:hover {{ transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }}
+        .gradient-bg {{ background: #000000; }}
+        .card {{ transition: all .2s ease; border-radius: 8px; }}
+        .card:hover {{ transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.15); }}
         .btn-primary {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: #000000;
+            color: #ffffff;
             padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
+            border: 2px solid #000000;
+            border-radius: 6px;
             font-weight: 600;
             cursor: pointer;
             transition: all .2s ease;
         }}
-        .btn-primary:hover {{ transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(102, 126, 234, 0.4); }}
+        .btn-primary:hover {{ background: #1a1a1a; border-color: #1a1a1a; }}
         .btn-secondary {{
-            background: #f3f4f6;
-            color: #374151;
+            background: #ffffff;
+            color: #000000;
             padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
+            border: 1px solid #000000;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 13px;
             text-decoration: none;
@@ -68,27 +68,27 @@ def base_layout(title: str, content: str, show_sidebar: bool = False) -> str:
             text-align: center;
             transition: all .2s ease;
         }}
-        .btn-secondary:hover {{ background: #e5e7eb; }}
-        .btn-danger {{ background: #fecaca; color: #dc2626; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }}
-        .btn-danger:hover {{ background: #fca5a5; }}
-        .status-badge {{ display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }}
-        .status-running {{ background: #dcfce7; color: #166534; }}
-        .status-stopped {{ background: #fee2e2; color: #991b1b; }}
-        .alert-error {{ background: #fee; border: 1px solid #fcc; color: #c33; padding: 12px; border-radius: 8px; }}
-        .alert-success {{ background: #efe; border: 1px solid #cfc; color: #3c3; padding: 12px; border-radius: 8px; }}
-        .alert-warning {{ background: #fff8e6; border: 1px solid #f4d27a; color: #8a6d1d; padding: 12px; border-radius: 8px; }}
-        .alert-info {{ background: #e0f2fe; border: 1px solid #7dd3fc; color: #0c4a6e; padding: 12px; border-radius: 8px; }}
-        .spinner {{ width: 22px; height: 22px; border: 3px solid #ddd; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; }}
+        .btn-secondary:hover {{ background: #f5f5f5; }}
+        .btn-danger {{ background: #ffffff; color: #000000; padding: 8px 16px; border: 1px solid #000000; border-radius: 4px; cursor: pointer; font-size: 13px; }}
+        .btn-danger:hover {{ background: #f5f5f5; }}
+        .status-badge {{ display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: 600; border: 1px solid; }}
+        .status-running {{ background: #ffffff; color: #000000; border-color: #000000; }}
+        .status-stopped {{ background: #f5f5f5; color: #666666; border-color: #999999; }}
+        .alert-error {{ background: #ffffff; border: 2px solid #000000; color: #000000; padding: 12px; border-radius: 6px; }}
+        .alert-success {{ background: #ffffff; border: 2px solid #000000; color: #000000; padding: 12px; border-radius: 6px; }}
+        .alert-warning {{ background: #ffffff; border: 2px solid #000000; color: #000000; padding: 12px; border-radius: 6px; }}
+        .alert-info {{ background: #ffffff; border: 2px solid #000000; color: #000000; padding: 12px; border-radius: 6px; }}
+        .spinner {{ width: 22px; height: 22px; border: 3px solid #cccccc; border-top-color: #000000; border-radius: 50%; animation: spin 1s linear infinite; }}
         @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
-        .model-card {{ background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; transition: all .2s ease; }}
-        .model-card:hover {{ border-color: #667eea; }}
-        .status-indicator {{ display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }}
-        .status-indicator.running {{ background: #10b981; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }}
-        .status-indicator.stopped {{ background: #ef4444; }}
+        .model-card {{ background: #ffffff; border-radius: 8px; padding: 20px; border: 1px solid #000000; transition: all .2s ease; }}
+        .model-card:hover {{ border-width: 2px; }}
+        .status-indicator {{ display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; border: 1px solid; }}
+        .status-indicator.running {{ background: #000000; border-color: #000000; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }}
+        .status-indicator.stopped {{ background: #ffffff; border-color: #000000; }}
         @keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: .5; }} }}
     </style>
 </head>
-<body {("class=\"bg-gray-50\"" if show_sidebar else "class=\"gradient-bg min-h-screen flex items-center justify-center py-12 px-4\"")}>
+<body {("class=\"bg-white\"" if show_sidebar else "class=\"bg-white min-h-screen flex items-center justify-center py-12 px-4\"")}>
     {sidebar}
     <div {("class=\"p-8\"" if show_sidebar else "class=\"w-full max-w-2xl\"")}>
         {content}
@@ -115,23 +115,23 @@ def base_layout(title: str, content: str, show_sidebar: bool = False) -> str:
 
 
 def upload_page() -> str:
-    return """<div class=\"card bg-white rounded-2xl shadow-2xl p-8\">
-  <div class=\"text-center mb-8\">
+    return """<div class=\"card bg-white rounded-lg shadow-md p-8 border border-black\">
+  <div class=\"text-center mb-8 border-b border-black pb-6\">
     <h1 class=\"text-4xl font-bold mb-2\">🚀 PRISM</h1>
-    <p class=\"text-gray-600 text-sm\">Deploy ML models with one click</p>
+    <p class=\"text-gray-700 text-sm\">Deploy ML models with one click</p>
   </div>
 
   <form hx-post=\"/api/upload-and-run-ui\" hx-target=\"#response\" hx-indicator=\"#loading\" enctype=\"multipart/form-data\" class=\"space-y-6\">
     <div>
-      <label class=\"block text-sm font-medium text-gray-700 mb-3\">Select Model File</label>
-      <input type=\"file\" name=\"file\" id=\"modelFile\" accept=\".onnx,.pkl,.pickle,.joblib\" required onchange=\"document.getElementById('fileName').textContent=this.files[0]?.name||'No file selected'\" class=\"w-full text-sm\">
-      <p id=\"fileName\" class=\"text-xs text-gray-500 mt-2\">No file selected</p>
+      <label class=\"block text-sm font-medium text-black mb-3\">Select Model File</label>
+      <input type=\"file\" name=\"file\" id=\"modelFile\" accept=\".onnx,.pkl,.pickle,.joblib\" required onchange=\"document.getElementById('fileName').textContent=this.files[0]?.name||'No file selected'\" class=\"w-full text-sm border border-black p-3 rounded-md\">
+      <p id=\"fileName\" class=\"text-xs text-gray-600 mt-2\">No file selected</p>
     </div>
 
-    <div class=\"flex items-center gap-3 bg-gray-50 p-4 rounded-lg\">
-      <input type=\"checkbox\" id=\"enableTunnel\" name=\"enable_tunnel\" class=\"w-5 h-5\">
-      <label for=\"enableTunnel\" class=\"text-sm font-medium text-gray-700\">Enable Public Tunnel</label>
-      <span class=\"text-xs text-gray-500 ml-auto\">Share prediction link publicly</span>
+    <div class=\"flex items-center gap-3 bg-white p-4 rounded-md border border-black\">
+      <input type=\"checkbox\" id=\"enableTunnel\" name=\"enable_tunnel\" class=\"w-5 h-5 accent-black\">
+      <label for=\"enableTunnel\" class=\"text-sm font-medium text-black\">Enable Public Tunnel</label>
+      <span class=\"text-xs text-gray-600 ml-auto\">Share prediction link publicly</span>
     </div>
 
     <button type=\"submit\" class=\"btn-primary w-full\">Upload & Deploy</button>
@@ -139,7 +139,7 @@ def upload_page() -> str:
 
   <div id=\"loading\" class=\"htmx-indicator text-center py-8\">
     <div class=\"spinner mx-auto mb-3\"></div>
-    <p class=\"text-gray-600 text-sm\">Deploying your model...</p>
+    <p class=\"text-gray-700 text-sm\">Deploying your model...</p>
   </div>
 
   <div id=\"response\" class=\"mt-8\"></div>
@@ -158,9 +158,9 @@ def upload_success_response(
     if tunnel_url:
         public_block = f"""
     <div>
-      <p class=\"text-sm font-medium text-gray-700 mb-2\">Public Tunnel URL 🌐</p>
+      <p class=\"text-sm font-medium text-black mb-2\">Public Tunnel URL 🌐</p>
       <div class=\"flex gap-2 items-center\">
-        <code class=\"flex-1 bg-white p-3 rounded border border-green-200 bg-green-50 text-sm font-mono text-gray-900 overflow-auto\">{tunnel_url}</code>
+        <code class=\"flex-1 bg-white p-3 rounded border border-black text-sm font-mono text-black overflow-auto\">{tunnel_url}</code>
         <button type=\"button\" class=\"btn-secondary whitespace-nowrap\" onclick=\"copyToClipboard('{tunnel_url}', this)\">Copy</button>
       </div>
       <p class=\"text-xs text-gray-600 mt-2\">Share this link with anyone to let them send predictions without exposing your local IP.</p>
@@ -170,27 +170,27 @@ def upload_success_response(
     warning_block = ""
     if tunnel_warning:
       warning_block = (
-        f'<div class="alert-warning mb-4">⚠ Tunnel unavailable: {tunnel_warning}</div>'
+        f'<div class=\"alert-warning mb-4\">⚠ Tunnel unavailable: {tunnel_warning}</div>'
       )
 
     return f"""<div class=\"alert-success mb-4\">✓ Model deployed successfully!</div>
   {warning_block}
-<div class=\"space-y-4 bg-gray-50 rounded-lg p-6\">
+<div class=\"space-y-4 bg-white rounded-lg p-6 border border-black\">
   <div>
-    <p class=\"text-sm font-medium text-gray-700 mb-2\">Model ID</p>
-    <code class=\"block bg-white p-3 rounded border border-gray-200 text-sm font-mono text-gray-900 break-all\">{model_id}</code>
+    <p class=\"text-sm font-medium text-black mb-2\">Model ID</p>
+    <code class=\"block bg-white p-3 rounded border border-black text-sm font-mono text-black break-all\">{model_id}</code>
   </div>
   <div>
-    <p class=\"text-sm font-medium text-gray-700 mb-2\">Local Prediction URL (UI)</p>
+    <p class=\"text-sm font-medium text-black mb-2\">Local Prediction URL (UI)</p>
     <div class=\"flex gap-2 items-center\">
-      <code class=\"flex-1 bg-white p-3 rounded border border-gray-200 text-sm font-mono text-gray-900 overflow-auto\">{ui_url}</code>
+      <code class=\"flex-1 bg-white p-3 rounded border border-black text-sm font-mono text-black overflow-auto\">{ui_url}</code>
       <button type=\"button\" class=\"btn-secondary whitespace-nowrap\" onclick=\"copyToClipboard('{ui_url}', this)\">Copy</button>
     </div>
   </div>
   <div>
-    <p class=\"text-sm font-medium text-gray-700 mb-2\">Local Prediction API</p>
+    <p class=\"text-sm font-medium text-black mb-2\">Local Prediction API</p>
     <div class=\"flex gap-2 items-center\">
-      <code class=\"flex-1 bg-white p-3 rounded border border-gray-200 text-sm font-mono text-gray-900 overflow-auto\">{api_url}</code>
+      <code class=\"flex-1 bg-white p-3 rounded border border-black text-sm font-mono text-black overflow-auto\">{api_url}</code>
       <button type=\"button\" class=\"btn-secondary whitespace-nowrap\" onclick=\"copyToClipboard('{api_url}', this)\">Copy</button>
     </div>
   </div>
@@ -238,9 +238,9 @@ def predict_page() -> str:
 def prediction_result_component(prediction: Dict[str, Any], model_id: str) -> str:
     pretty = json.dumps(prediction, indent=2)
     return f"""<div class=\"alert-success mb-4\">✓ Prediction completed!</div>
-<div class=\"bg-gray-900 p-6 rounded-lg\">
-  <p class=\"text-gray-400 text-xs mb-2\">Response (JSON):</p>
-  <pre class=\"text-green-400 font-mono text-sm overflow-auto max-h-48\">{pretty}</pre>
+<div class=\"bg-white p-6 rounded-lg border border-black\">
+  <p class=\"text-black text-xs mb-2 font-medium\">Response (JSON):</p>
+  <pre class=\"text-black font-mono text-sm overflow-auto max-h-48 bg-white p-3 border border-black rounded-md\">{pretty}</pre>
 </div>
 <div class=\"mt-6 flex gap-3\">
   <button hx-get=\"/predict?model_id={model_id}\" hx-target=\"body\" hx-replace=\"outerHTML swap:1s\" class=\"btn-secondary flex-1\">Make Another Prediction</button>
@@ -274,9 +274,9 @@ def dashboard_page_with_cards(model_cards: list, has_models: bool) -> str:
         tunnel_block = ""
         if card.tunnel_url:
             tunnel_block = f'''
-            <div class="bg-green-50 border border-green-200 rounded-lg p-3 mt-4">
-                <p class="text-xs font-medium text-green-900 mb-2">🌐 Public Tunnel</p>
-                <code class="text-xs bg-white p-2 rounded border border-green-200 block overflow-auto mb-2">{card.tunnel_url}</code>
+            <div class="bg-white border border-black rounded-lg p-3 mt-4">
+                <p class="text-xs font-medium text-black mb-2">🌐 Public Tunnel</p>
+                <code class="text-xs bg-white p-2 rounded border border-black block overflow-auto mb-2 font-mono">{card.tunnel_url}</code>
                 <button type="button" class="btn-secondary text-xs" onclick="copyToClipboard('{card.tunnel_url}', this)">Copy Link</button>
             </div>
 '''
@@ -287,24 +287,24 @@ def dashboard_page_with_cards(model_cards: list, has_models: bool) -> str:
             <div class="flex-1">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="status-indicator {card.indicator_class}\"></span>
-                    <h3 class="font-bold text-lg text-gray-900 break-all">{card.model_id}</h3>
+                    <h3 class="font-bold text-lg text-black break-all">{card.model_id}</h3>
                 </div>
                 <span class="status-badge {card.status_class}">{card.status_text}</span>
             </div>
             <button hx-post="/api/restart-model" hx-vals='{{"container_id": "{card.container_id}"}}' hx-target="closest .model-card" hx-swap="outerHTML swap:1s" class="btn-secondary text-xs whitespace-nowrap">🔄 Restart</button>
         </div>
 
-        <div class="bg-gray-50 p-3 rounded-lg mb-4 text-sm space-y-2">
-            <div><span class="text-gray-600">Container:</span> <code class="bg-white px-2 py-1 rounded text-xs font-mono">{card.container_id[:12]}</code></div>
-            <div><span class="text-gray-600">Port:</span> <span class="font-mono text-gray-900">{card.port}</span></div>
+        <div class="bg-white p-3 rounded-md border border-black mb-4 text-sm space-y-2">
+            <div><span class="text-gray-700">Container:</span> <code class="bg-white px-2 py-1 rounded text-xs font-mono border border-black">{card.container_id[:12]}</code></div>
+            <div><span class="text-gray-700">Port:</span> <span class="font-mono text-black">{card.port}</span></div>
         </div>
 
         <div class="space-y-2 mb-4">
             <button type="button" class="w-full btn-secondary text-sm text-left" onclick="copyToClipboard('{card.predict_url}', this)">
-                <span class="text-xs">UI Prediction URL</span><br><code class="text-xs font-mono break-all">{card.predict_url}</code>
+                <span class="text-xs\">UI Prediction URL</span><br><code class="text-xs font-mono break-all">{card.predict_url}</code>
             </button>
             <button type="button" class="w-full btn-secondary text-sm text-left" onclick="copyToClipboard('{card.api_url}', this)">
-                <span class="text-xs">API Endpoint</span><br><code class="text-xs font-mono break-all">{card.api_url}</code>
+                <span class="text-xs\">API Endpoint</span><br><code class="text-xs font-mono break-all">{card.api_url}</code>
             </button>
         </div>
 
@@ -320,12 +320,12 @@ def dashboard_page_with_cards(model_cards: list, has_models: bool) -> str:
 
     return f"""
 <div class="mb-8">
-    <h1 class="text-3xl font-bold text-gray-900 mb-2">📊 Control Center</h1>
-    <p class="text-gray-600">Manage and monitor your deployed ML models</p>
+    <h1 class="text-3xl font-bold text-black mb-2">📊 Control Center</h1>
+    <p class="text-gray-700">Manage and monitor your deployed ML models</p>
 </div>
 
-<div class="bg-white rounded-lg p-4 mb-8 border border-blue-200 bg-blue-50 flex items-center justify-between">
-    <p class="text-sm text-blue-900"><strong>Tip:</strong> Click on a model card to expand details or use the buttons above to upload new models or check logs.</p>
+<div class="bg-white rounded-lg p-4 mb-8 border-2 border-black flex items-center justify-between">
+    <p class="text-sm text-black"><strong>Tip:</strong> Click on a model card to expand details or use the buttons above to upload new models or check logs.</p>
     {('<button hx-delete="/api/kill-all-models" hx-target="body" hx-confirm="⚠️ WARNING: This will delete ALL models and stop all containers! This action cannot be undone. Are you sure?" class="btn-danger text-xs whitespace-nowrap">🔥 Kill All</button>' if has_models else '')}
 </div>
 
