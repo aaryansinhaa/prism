@@ -332,6 +332,43 @@ curl -X POST \
   -d '{"input": [ ... ]}'
 ```
 
+HTTP upload API (auto-build image per model):
+
+```bash
+curl -X POST \
+   http://127.0.0.1:8000/upload \
+   -F "file=@./churn_model.pkl"
+```
+
+Server behavior on upload:
+
+1. Saves model file under `model_store/uploads/<model_id>/`
+2. Generates model-specific `Dockerfile`
+3. Runs `docker build -t prism_model_<model_id> .` in that directory
+
+Response includes:
+
+* `model_id`
+* `image_tag`
+* `model_path`
+* `dockerfile_path`
+* `build_context`
+
+HTTP upload-and-run API (build + start container):
+
+```bash
+curl -X POST \
+   http://127.0.0.1:8000/upload-and-run \
+   -F "file=@./churn_model.pkl"
+```
+
+Additional response fields:
+
+* `container_name`
+* `container_id`
+* `host_port`
+* `predict_url`
+
 ---
 
 ## 14. Benchmarks
