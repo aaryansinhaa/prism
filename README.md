@@ -369,6 +369,12 @@ Additional response fields:
 * `host_port`
 * `predict_url`
 
+Registry tracking on `upload-and-run`:
+
+* Stores `model_id`, `container_id`, and `port`
+* Default file: `app/registry/containers.json`
+* Override path with `MODEL_CONTAINER_REGISTRY_PATH`
+
 ---
 
 ## 14. Benchmarks

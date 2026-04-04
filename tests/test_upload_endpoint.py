@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -17,18 +18,19 @@ from app.main import app
 def test_upload_builds_model_image(monkeypatch, tmp_path):
     monkeypatch.setenv("MODEL_UPLOAD_ROOT", str(tmp_path))
 
-    def fake_run(command, cwd, check, capture_output, text, timeout):
-        assert command[:3] == ["docker", "build", "-t"]
-        assert command[3].startswith("prism_model_")
-        assert command[4] == "."
-        assert Path(cwd).exists()
-        return subprocess.CompletedProcess(command, 0, stdout="built", stderr="")
+    def fake_run(command, **kwargs):
+        if command[:3] == ["docker", "build", "-t"]:
+            cwd = kwargs.get("cwd")
+            assert cwd is not None
+            assert Path(cwd).exists()
+            return subprocess.CompletedProcess(command, 0, stdout="built", stderr="")
+        raise AssertionError(f"Unexpected command: {command}")
 
-    monkeypatch.setattr("app.main.subprocess.run", fake_run)
+    monkeypatch.setattr("subprocess.run", fake_run)
 
     with TestClient(app) as client:
         response = client.post(
-            "/upload",
+            "/models/upload",
             files={"file": ("uploaded_model.onnx", io.BytesIO(b"model-bytes"), "application/octet-stream")},
         )
 
@@ -51,7 +53,7 @@ def test_upload_rejects_unsupported_extension(monkeypatch, tmp_path):
 
     with TestClient(app) as client:
         response = client.post(
-            "/upload",
+            "/models/upload",
             files={"file": ("bad_model.txt", io.BytesIO(b"not-a-model"), "text/plain")},
         )
 
@@ -61,6 +63,8 @@ def test_upload_rejects_unsupported_extension(monkeypatch, tmp_path):
 
 def test_upload_and_run_starts_container(monkeypatch, tmp_path):
     monkeypatch.setenv("MODEL_UPLOAD_ROOT", str(tmp_path))
+    registry_file = tmp_path / "containers.json"
+    monkeypatch.setenv("MODEL_CONTAINER_REGISTRY_PATH", str(registry_file))
 
     def fake_run(command, **kwargs):
         if command[:3] == ["docker", "build", "-t"]:
@@ -74,11 +78,11 @@ def test_upload_and_run_starts_container(monkeypatch, tmp_path):
             return subprocess.CompletedProcess(command, 0, stdout="container123", stderr="")
         raise AssertionError(f"Unexpected command: {command}")
 
-    monkeypatch.setattr("app.main.subprocess.run", fake_run)
+    monkeypatch.setattr("subprocess.run", fake_run)
 
     with TestClient(app) as client:
         response = client.post(
-            "/upload-and-run",
+            "/models/upload-and-run",
             files={"file": ("uploaded_model.onnx", io.BytesIO(b"model-bytes"), "application/octet-stream")},
         )
 
@@ -88,6 +92,17 @@ def test_upload_and_run_starts_container(monkeypatch, tmp_path):
     assert payload["container_id"] == "container123"
     assert isinstance(payload["host_port"], int)
     assert payload["predict_url"].startswith("http://127.0.0.1:")
+    assert payload["registry_path"] == str(registry_file)
+    assert payload["registry"]["model_id"] == payload["model_id"]
+    assert payload["registry"]["container_id"] == "container123"
+    assert payload["registry"]["port"] == payload["host_port"]
+
+    with registry_file.open("r", encoding="utf-8") as file:
+        registry_data = json.load(file)
+
+    assert payload["model_id"] in registry_data["models"]
+    assert registry_data["models"][payload["model_id"]]["container_id"] == "container123"
+    assert registry_data["models"][payload["model_id"]]["port"] == payload["host_port"]
 
 
 def test_upload_and_run_returns_500_on_run_failure(monkeypatch, tmp_path):
@@ -100,11 +115,11 @@ def test_upload_and_run_returns_500_on_run_failure(monkeypatch, tmp_path):
             raise subprocess.CalledProcessError(1, command, output="", stderr="docker run boom")
         raise AssertionError(f"Unexpected command: {command}")
 
-    monkeypatch.setattr("app.main.subprocess.run", fake_run)
+    monkeypatch.setattr("subprocess.run", fake_run)
 
     with TestClient(app) as client:
         response = client.post(
-            "/upload-and-run",
+            "/models/upload-and-run",
             files={"file": ("uploaded_model.onnx", io.BytesIO(b"model-bytes"), "application/octet-stream")},
         )
 
