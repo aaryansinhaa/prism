@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routing import health, models, predict, registry
+from app.routing import health, inference, models, predict, registry
 from runtime.model_loaders import load_model, default_model_path
 
 app = FastAPI()
@@ -36,4 +36,5 @@ async def load_runtime_model() -> None:
 app.include_router(health.router)
 app.include_router(predict.router)
 app.include_router(models.router)
+app.include_router(inference.router)
 app.include_router(registry.router)
