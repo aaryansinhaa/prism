@@ -164,6 +164,38 @@ Future versions may support:
 
 ## 6. Core System Features
 
+### 6.0 Public Model Access Control (PRISM-9)
+
+The public endpoint `POST /models/{model_id}/predict` now supports:
+
+* **API keys** (`X-API-Key` or `Authorization: Bearer <key>`)
+* **Rate limiting** (in-memory sliding window)
+* **Request logging** (model, principal fingerprint, IP, status, latency)
+
+Configuration via environment variables:
+
+* `PRISM_API_KEYS`: comma-separated API keys (e.g. `key1,key2`)
+   * If empty/unset, endpoint runs in open mode.
+* `PRISM_RATE_LIMIT_REQUESTS`: max requests per window (default: `60`)
+* `PRISM_RATE_LIMIT_WINDOW_SECONDS`: window size in seconds (default: `60`)
+
+Example:
+
+```bash
+export PRISM_API_KEYS="my-public-key-1,my-public-key-2"
+export PRISM_RATE_LIMIT_REQUESTS="120"
+export PRISM_RATE_LIMIT_WINDOW_SECONDS="60"
+```
+
+Request example:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/models/<model_id>/predict" \
+   -H "Content-Type: application/json" \
+   -H "X-API-Key: my-public-key-1" \
+   -d '{"input":[1.0]}'
+```
+
 ### 6.1 Request Batching
 
 PRISM implements dynamic batching:
