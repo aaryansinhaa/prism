@@ -7,6 +7,25 @@ from typing import Any, Dict, Optional
 from pyngrok import ngrok
 
 
+_ngrok_auth_configured = False
+
+
+def _ensure_ngrok_auth_configured() -> None:
+    global _ngrok_auth_configured
+    if _ngrok_auth_configured:
+        return
+
+    token = os.environ.get("NGROK_AUTHTOKEN") or os.environ.get("PYNGROK_AUTHTOKEN")
+    if not token:
+        raise RuntimeError(
+            "Tunnel requested but NGROK_AUTHTOKEN is not set. "
+            "Set NGROK_AUTHTOKEN in your environment to enable public tunnel URLs."
+        )
+
+    ngrok.set_auth_token(token)
+    _ngrok_auth_configured = True
+
+
 async def start_tunnel(local_port: int, model_id: str) -> tuple[Optional[str], None]:
     """Start a pyngrok (ngrok) reverse tunnel for the given local port.
     
@@ -18,6 +37,8 @@ async def start_tunnel(local_port: int, model_id: str) -> tuple[Optional[str], N
         Tuple of (public_url, None) - ngrok doesn't expose PID, only URL
     """
     try:
+        _ensure_ngrok_auth_configured()
+
         # Connect to ngrok and get public URL
         tunnel_url = await asyncio.to_thread(
             ngrok.connect,

@@ -49,7 +49,7 @@ def test_inference_forwards_to_container(monkeypatch, tmp_path):
             self.status_code = status_code
             self._json_data = json_data
 
-        async def json(self):
+        def json(self):
             return self._json_data
 
         def raise_for_status(self):

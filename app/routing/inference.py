@@ -59,7 +59,7 @@ async def predict_model(
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(container_url, json=payload)
             response.raise_for_status()
-            return await response.json()
+            return response.json()
     except httpx.ConnectError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
