@@ -33,7 +33,12 @@ def _read_registry(path: Path) -> Dict[str, Any]:
     return data
 
 
-def register_container(model_id: str, container_id: str, port: int) -> Dict[str, Any]:
+def register_container(
+    model_id: str,
+    container_id: str,
+    port: int,
+    tunnel_url: str | None = None,
+) -> Dict[str, Any]:
     path = registry_path()
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -43,6 +48,9 @@ def register_container(model_id: str, container_id: str, port: int) -> Dict[str,
         "container_id": container_id,
         "port": int(port),
     }
+    if tunnel_url:
+        record["tunnel_url"] = tunnel_url
+    
     data["models"][model_id] = record
 
     with path.open("w", encoding="utf-8") as file:
