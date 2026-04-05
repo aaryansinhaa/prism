@@ -12,6 +12,7 @@ from app.core import run_model_container
 from app.core.tunnel import start_tunnel
 from app.models import ingest_upload_and_build, validate_upload_extension
 from app.registry.container_registry import register_container, registry_path
+from app.services.dashboard_service import ContainerService, ModelRegistryService
 
 router = APIRouter(prefix="/models", tags=["models"])
 
@@ -111,3 +112,101 @@ async def upload_and_run_model(
         }
     )
     return upload_result
+
+
+@router.post("")
+async def create_model(
+    file: UploadFile = File(...),
+    model_name: str | None = Form(None),
+    model_description: str | None = Form(None),
+    expected_input_json: str | None = Form(None),
+) -> Dict[str, Any]:
+    """PRISM-11 create endpoint: upload, build, and run model."""
+    return await upload_and_run_model(
+        file=file,
+        model_name=model_name,
+        model_description=model_description,
+        expected_input_json=expected_input_json,
+    )
+
+
+@router.get("")
+def list_models() -> Dict[str, Any]:
+    """PRISM-11 list endpoint: return all deployed model metadata."""
+    models = ModelRegistryService.load_all_models()
+    items: list[Dict[str, Any]] = []
+
+    for model_id, metadata in sorted(models.items()):
+        item: Dict[str, Any] = {
+            "model_id": model_id,
+            "container_id": metadata.container_id,
+            "port": metadata.port,
+        }
+        if metadata.name:
+            item["name"] = metadata.name
+        if metadata.description:
+            item["description"] = metadata.description
+        if metadata.expected_input_json:
+            item["expected_input_json"] = metadata.expected_input_json
+        if metadata.tunnel_url:
+            item["tunnel_url"] = metadata.tunnel_url
+        items.append(item)
+
+    return {"models": items, "count": len(items)}
+
+
+@router.get("/{model_id}")
+def get_model(model_id: str) -> Dict[str, Any]:
+    """PRISM-11 get endpoint: return one deployed model metadata record."""
+    models = ModelRegistryService.load_all_models()
+    metadata = models.get(model_id)
+    if metadata is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model {model_id} not found in registry",
+        )
+
+    item: Dict[str, Any] = {
+        "model_id": model_id,
+        "container_id": metadata.container_id,
+        "port": metadata.port,
+    }
+    if metadata.name:
+        item["name"] = metadata.name
+    if metadata.description:
+        item["description"] = metadata.description
+    if metadata.expected_input_json:
+        item["expected_input_json"] = metadata.expected_input_json
+    if metadata.tunnel_url:
+        item["tunnel_url"] = metadata.tunnel_url
+
+    return item
+
+
+@router.delete("/{model_id}")
+async def delete_model(model_id: str) -> Dict[str, Any]:
+    """PRISM-11 delete endpoint: stop/remove container and registry record."""
+    models = ModelRegistryService.load_all_models()
+    metadata = models.get(model_id)
+    if metadata is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model {model_id} not found in registry",
+        )
+
+    result = await ContainerService.delete_model_async(
+        model_id=model_id,
+        container_id=metadata.container_id,
+    )
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.message,
+        )
+
+    return {
+        "success": True,
+        "model_id": model_id,
+        "deleted_count": result.deleted_count,
+        "message": result.message,
+    }
