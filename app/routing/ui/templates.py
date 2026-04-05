@@ -217,7 +217,27 @@ def upload_success_response(
 </div>"""
 
 
-def predict_page() -> str:
+def predict_page(
+    model_name: str | None = None,
+    model_description: str | None = None,
+    expected_input_json: str | None = None,
+) -> str:
+    model_meta_block = ""
+    if model_name or model_description or expected_input_json:
+        name_line = f"<p class=\"text-sm text-black mb-1\"><strong>Name:</strong> {escape_html(model_name or '')}</p>" if model_name else ""
+        description_line = f"<p class=\"text-sm text-gray-700 mb-1\"><strong>Description:</strong> {escape_html(model_description or '')}</p>" if model_description else ""
+        expected_line = ""
+        if expected_input_json:
+            expected_line = (
+                "<p class=\"text-sm text-black mb-1\"><strong>Expected Input JSON:</strong></p>"
+                f"<pre class=\"text-xs text-black bg-white border border-black rounded-md p-3 overflow-auto\">{escape_html(expected_input_json)}</pre>"
+            )
+        model_meta_block = (
+            "<div class=\"bg-white p-4 rounded-md border border-black mb-6 space-y-1\">"
+            f"{name_line}{description_line}{expected_line}"
+            "</div>"
+        )
+
     return """<div class=\"card bg-white rounded-lg shadow-md p-8 border border-black\">
   <div class=\"text-center mb-8 border-b border-black pb-6\">
     <h1 class=\"text-3xl font-bold mb-2\">🔮 Make Predictions</h1>
@@ -225,6 +245,7 @@ def predict_page() -> str:
   </div>
 
   <div class=\"bg-white p-4 rounded-md border border-black mb-6\"><p class=\"text-sm text-black\"><strong id=\"modelIdDisplay\">Loading...</strong></p></div>
+  """ + model_meta_block + """
 
   <form hx-post=\"/predict-result\" hx-target=\"#result\" hx-indicator=\"#predictLoading\" class=\"space-y-6\">
     <input type=\"hidden\" id=\"modelIdInput\" name=\"model_id\">
@@ -303,8 +324,11 @@ def dashboard_page_with_cards(model_cards: list, has_models: bool) -> str:
             <div class="flex-1">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="status-indicator {card.indicator_class}\"></span>
-                    <h3 class="font-bold text-lg text-black break-all">{card.model_id}</h3>
+              <h3 class="font-bold text-lg text-black break-all">{card.model_name}</h3>
                 </div>
+            <p class="text-xs text-gray-600 mb-2">ID: {card.model_id}</p>
+            {f'<p class="text-sm text-gray-700 mb-2">{escape_html(card.description)}</p>' if card.description else ''}
+            {f'<details class="mb-2"><summary class="text-xs text-black cursor-pointer">Expected Input JSON</summary><pre class="text-xs text-black bg-white border border-black rounded-md p-2 mt-2 overflow-auto">{escape_html(card.expected_input_json)}</pre></details>' if card.expected_input_json else ''}
                 <span class="status-badge {card.status_class}">{card.status_text}</span>
             </div>
             <button hx-post="/api/restart-model" hx-vals='{{"container_id": "{card.container_id}"}}' hx-target="closest .model-card" hx-swap="outerHTML" class="btn-secondary text-xs whitespace-nowrap">🔄 Restart</button>
@@ -392,6 +416,22 @@ def upload_model_page() -> str:
   <p class="text-gray-700 text-sm mb-8">Deploy a new ML model to your control center</p>
 
   <form hx-post="/api/upload-and-run-ui" hx-target="#response" hx-indicator="#loading" enctype="multipart/form-data" class="space-y-6">
+    <div>
+      <label class="block text-sm font-medium text-black mb-3">Model Name</label>
+      <input type="text" name="model_name" maxlength="120" placeholder="e.g. Customer Churn Predictor" class="w-full text-sm border border-black p-3 rounded-md">
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-black mb-3">Description</label>
+      <textarea name="model_description" maxlength="500" placeholder="Short description of what this model predicts" class="w-full text-sm border border-black p-3 rounded-md h-24 resize-none"></textarea>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-black mb-3">Expected Input JSON Format</label>
+      <textarea name="expected_input_json" placeholder='{"input": [1.0, 2.0, 3.0]}' class="w-full text-sm border border-black p-3 rounded-md h-28 resize-none font-mono"></textarea>
+      <p class="text-xs text-gray-600 mt-2">Optional but recommended. Must be valid JSON if provided.</p>
+    </div>
+
     <div>
       <label class="block text-sm font-medium text-black mb-3">Select Model File</label>
       <input type="file" name="file" id="modelFile" accept=".onnx,.pkl,.pickle,.joblib" required onchange="document.getElementById('fileName').textContent=this.files[0]?.name||'No file selected'" class="w-full text-sm border border-black p-3 rounded-md">

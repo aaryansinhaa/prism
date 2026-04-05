@@ -10,6 +10,9 @@ from typing import Optional
 class UploadModelDTO:
     """DTO for model upload request."""
     filename: str
+    name: Optional[str] = None
+    description: Optional[str] = None
+    expected_input_json: Optional[str] = None
     enable_tunnel: bool = False
 
 
@@ -17,6 +20,9 @@ class UploadModelDTO:
 class ModelCardDTO:
     """DTO for rendering a model card on dashboard."""
     model_id: str
+    model_name: str
+    description: Optional[str]
+    expected_input_json: Optional[str]
     container_id: str
     port: int
     status_text: str

@@ -32,6 +32,9 @@ class TestUploadFormComponent:
         assert "input" in response.text
         assert 'type="file"' in response.text
         assert 'accept=".onnx,.pkl,.pickle,.joblib"' in response.text
+        assert 'name="model_name"' in response.text
+        assert 'name="model_description"' in response.text
+        assert 'name="expected_input_json"' in response.text
     
     def test_upload_ui_contains_tunnel_checkbox(self):
         """UT: Upload form has tunnel enable checkbox."""
@@ -218,6 +221,53 @@ class TestPredictionWorkflow:
         if response.status_code == 200:
             assert "alert-error" in response.text
             assert "not found" in response.text.lower() or "failed" in response.text.lower()
+
+    def test_prediction_rejects_payload_not_matching_expected_contract(self, monkeypatch, tmp_path):
+        """IT: /predict-result shows validation error when payload violates expected contract."""
+        from unittest.mock import patch
+
+        model_id = "ui-contract-model"
+        contract = {
+            "type": "object",
+            "required": ["input"],
+            "properties": {
+                "input": {
+                    "type": "array",
+                    "items": {"type": "number"},
+                }
+            },
+            "additionalProperties": False,
+        }
+
+        registry_file = tmp_path / "containers.json"
+        monkeypatch.setenv("MODEL_CONTAINER_REGISTRY_PATH", str(registry_file))
+        registry_file.write_text(
+            json.dumps(
+                {
+                    "models": {
+                        model_id: {
+                            "model_id": model_id,
+                            "container_id": "ui-contract-container",
+                            "port": 9995,
+                            "expected_input_json": json.dumps(contract),
+                        }
+                    }
+                }
+            )
+        )
+
+        response = client.post(
+            "/predict-result",
+            data={
+                "model_id": model_id,
+                "input_data": json.dumps({"wrong": [1.0, 2.0]}),
+            },
+        )
+
+        assert response.status_code in [200, 422]
+        if response.status_code == 200:
+            assert "alert-error" in response.text
+            assert "expected format" in response.text.lower()
 
 
 class TestHTMLComponentsIntegration:

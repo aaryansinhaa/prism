@@ -1,10 +1,11 @@
 """Model upload and container launch routing."""
 
 import asyncio
+import json
 import os
 from typing import Any, Dict
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from starlette import status
 
 from app.core import run_model_container
@@ -13,6 +14,29 @@ from app.models import ingest_upload_and_build, validate_upload_extension
 from app.registry.container_registry import register_container, registry_path
 
 router = APIRouter(prefix="/models", tags=["models"])
+
+
+def _clean_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    return cleaned or None
+
+
+def _validate_expected_input_json(raw_value: str | None) -> str | None:
+    cleaned = _clean_text(raw_value)
+    if cleaned is None:
+        return None
+
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid expected input JSON format: {exc}",
+        )
+
+    return json.dumps(parsed, ensure_ascii=False)
 
 
 @router.post("/upload")
@@ -24,10 +48,18 @@ async def upload_model(file: UploadFile = File(...)) -> Dict[str, Any]:
 
 
 @router.post("/upload-and-run")
-async def upload_and_run_model(file: UploadFile = File(...)) -> Dict[str, Any]:
+async def upload_and_run_model(
+    file: UploadFile = File(...),
+    model_name: str | None = Form(None),
+    model_description: str | None = Form(None),
+    expected_input_json: str | None = Form(None),
+) -> Dict[str, Any]:
     """Upload, build, and launch model container in one step."""
     file_name = file.filename or ""
     validate_upload_extension(file_name)
+    cleaned_name = _clean_text(model_name)
+    cleaned_description = _clean_text(model_description)
+    validated_expected_input_json = _validate_expected_input_json(expected_input_json)
 
     upload_result = await ingest_upload_and_build(file)
 
@@ -61,6 +93,9 @@ async def upload_and_run_model(file: UploadFile = File(...)) -> Dict[str, Any]:
         model_id=model_id,
         container_id=container_id,
         port=host_port,
+        name=cleaned_name,
+        description=cleaned_description,
+        expected_input_json=validated_expected_input_json,
         tunnel_url=tunnel_url,
     )
 

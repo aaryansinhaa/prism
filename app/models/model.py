@@ -12,6 +12,9 @@ class ModelMetadata:
     model_id: str
     container_id: str
     port: int
+    name: Optional[str] = None
+    description: Optional[str] = None
+    expected_input_json: Optional[str] = None
     tunnel_url: Optional[str] = None
 
     def to_dict(self) -> dict:
@@ -21,6 +24,12 @@ class ModelMetadata:
             "container_id": self.container_id,
             "port": self.port,
         }
+        if self.name:
+            result["name"] = self.name
+        if self.description:
+            result["description"] = self.description
+        if self.expected_input_json:
+            result["expected_input_json"] = self.expected_input_json
         if self.tunnel_url:
             result["tunnel_url"] = self.tunnel_url
         return result

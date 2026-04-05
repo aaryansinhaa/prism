@@ -37,6 +37,9 @@ def register_container(
     model_id: str,
     container_id: str,
     port: int,
+    name: str | None = None,
+    description: str | None = None,
+    expected_input_json: str | None = None,
     tunnel_url: str | None = None,
 ) -> Dict[str, Any]:
     path = registry_path()
@@ -48,6 +51,12 @@ def register_container(
         "container_id": container_id,
         "port": int(port),
     }
+    if name:
+        record["name"] = name
+    if description:
+        record["description"] = description
+    if expected_input_json:
+        record["expected_input_json"] = expected_input_json
     if tunnel_url:
         record["tunnel_url"] = tunnel_url
     

@@ -125,3 +125,55 @@ def test_upload_and_run_returns_500_on_run_failure(monkeypatch, tmp_path):
 
     assert response.status_code == 500
     assert "docker run boom" in response.json()["detail"]
+
+
+def test_upload_and_run_persists_metadata(monkeypatch, tmp_path):
+    monkeypatch.setenv("MODEL_UPLOAD_ROOT", str(tmp_path))
+    registry_file = tmp_path / "containers.json"
+    monkeypatch.setenv("MODEL_CONTAINER_REGISTRY_PATH", str(registry_file))
+
+    def fake_run(command, **kwargs):
+        if command[:3] == ["docker", "build", "-t"]:
+            return subprocess.CompletedProcess(command, 0, stdout="built", stderr="")
+        if command[:3] == ["docker", "run", "-d"]:
+            return subprocess.CompletedProcess(command, 0, stdout="container-metadata", stderr="")
+        raise AssertionError(f"Unexpected command: {command}")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/models/upload-and-run",
+            data={
+                "model_name": "Churn Predictor",
+                "model_description": "Predicts customer churn risk.",
+                "expected_input_json": '{"features": [1.0, 2.0, 3.0]}',
+            },
+            files={"file": ("uploaded_model.onnx", io.BytesIO(b"model-bytes"), "application/octet-stream")},
+        )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    model_id = payload["model_id"]
+
+    with registry_file.open("r", encoding="utf-8") as file:
+        registry_data = json.load(file)
+
+    record = registry_data["models"][model_id]
+    assert record["name"] == "Churn Predictor"
+    assert record["description"] == "Predicts customer churn risk."
+    assert record["expected_input_json"] == '{"features": [1.0, 2.0, 3.0]}'
+
+
+def test_upload_and_run_rejects_invalid_expected_input_json(monkeypatch, tmp_path):
+    monkeypatch.setenv("MODEL_UPLOAD_ROOT", str(tmp_path))
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/models/upload-and-run",
+            data={"expected_input_json": "{invalid json"},
+            files={"file": ("uploaded_model.onnx", io.BytesIO(b"model-bytes"), "application/octet-stream")},
+        )
+
+    assert response.status_code == 400
+    assert "expected input json" in response.json()["detail"].lower()

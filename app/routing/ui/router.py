@@ -11,6 +11,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse
 
 from app.core import run_model_container
+from app.core.input_contract import validate_payload_against_expected_input_json
 from app.core.tunnel import start_tunnel
 from app.dto.dto import (
     HtmlResponseDTO,
@@ -38,6 +39,30 @@ from app.services.dashboard_service import (
 from app.utils.docker_utils import delete_container, get_container_logs
 
 router = APIRouter(tags=["frontend"])
+
+
+def _clean_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    return cleaned or None
+
+
+def _validate_expected_input_json(raw_value: str | None) -> str | None:
+    """Validate expected input format JSON and return normalized string."""
+    cleaned = _clean_text(raw_value)
+    if cleaned is None:
+        return None
+
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid expected input JSON format: {exc}",
+        )
+
+    return json.dumps(parsed, ensure_ascii=False)
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -162,11 +187,18 @@ async def kill_all_models() -> str:
 @router.post("/api/upload-and-run-ui", response_class=HTMLResponse)
 async def upload_and_run_ui(
     file: UploadFile = File(...),
+    model_name: str | None = Form(None),
+    model_description: str | None = Form(None),
+    expected_input_json: str | None = Form(None),
     enable_tunnel: bool = Form(False),
 ) -> str:
     try:
         file_name = file.filename or ""
         validate_upload_extension(file_name)
+
+        cleaned_name = _clean_text(model_name)
+        cleaned_description = _clean_text(model_description)
+        validated_expected_input_json = _validate_expected_input_json(expected_input_json)
 
         upload_result = await ingest_upload_and_build(file)
         model_id = upload_result["model_id"]
@@ -191,6 +223,9 @@ async def upload_and_run_ui(
             model_id=model_id,
             container_id=container_id,
             port=host_port,
+            name=cleaned_name,
+            description=cleaned_description,
+            expected_input_json=validated_expected_input_json,
             tunnel_url=tunnel_url,
         )
 
@@ -212,7 +247,32 @@ async def upload_and_run_ui(
 
 @router.get("/predict", response_class=HTMLResponse)
 async def predict_ui(model_id: str | None = None) -> str:
-    return base_layout("PRISM - Make Predictions", predict_page())
+    model_name: str | None = None
+    model_description: str | None = None
+    expected_input_json: str | None = None
+
+    if model_id:
+        path = registry_path()
+        if path.exists():
+            try:
+                with path.open("r", encoding="utf-8") as file:
+                    data: Dict[str, Any] = json.load(file)
+                model_entry = data.get("models", {}).get(model_id, {})
+                if isinstance(model_entry, dict):
+                    model_name = model_entry.get("name")
+                    model_description = model_entry.get("description")
+                    expected_input_json = model_entry.get("expected_input_json")
+            except (OSError, json.JSONDecodeError):
+                pass
+
+    return base_layout(
+        "PRISM - Make Predictions",
+        predict_page(
+            model_name=model_name,
+            model_description=model_description,
+            expected_input_json=expected_input_json,
+        ),
+    )
 
 
 @router.post("/predict-result", response_class=HTMLResponse)
@@ -239,6 +299,16 @@ async def predict_result(
     model_entry = models.get(model_id)
     if not model_entry:
         return prediction_error_component(f"Model not found: {model_id}", model_id)
+
+    is_valid, error = validate_payload_against_expected_input_json(
+        model_entry.get("expected_input_json"),
+        payload,
+    )
+    if not is_valid:
+        return prediction_error_component(
+            f"Input does not match expected format: {error}",
+            model_id,
+        )
 
     port = model_entry.get("port")
     if port is None:

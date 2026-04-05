@@ -45,6 +45,9 @@ class ModelRegistryService:
                         model_id=model_id,
                         container_id=m.get("container_id", "unknown"),
                         port=m.get("port", 0),
+                        name=m.get("name"),
+                        description=m.get("description"),
+                        expected_input_json=m.get("expected_input_json"),
                         tunnel_url=m.get("tunnel_url"),
                     )
                     for model_id, m in models_data.items()
@@ -157,6 +160,9 @@ class DashboardService:
             status = get_container_status(metadata.container_id)
             card = ModelCardDTO(
                 model_id=model_id,
+                model_name=metadata.name or model_id,
+                description=metadata.description,
+                expected_input_json=metadata.expected_input_json,
                 container_id=metadata.container_id,
                 port=metadata.port,
                 status_text=status.status_text,

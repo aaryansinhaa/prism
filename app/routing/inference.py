@@ -8,6 +8,7 @@ from fastapi import APIRouter, Body, HTTPException, Request
 from starlette import status
 
 from app.core.access_control import enforce_rate_limit, log_access, validate_api_key
+from app.core.input_contract import validate_payload_against_expected_input_json
 from app.registry.container_registry import registry_path
 
 router = APIRouter(prefix="/models", tags=["inference"])
@@ -63,6 +64,16 @@ async def predict_model(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Model {model_id} has no port configured",
+            )
+
+        is_valid, error = validate_payload_against_expected_input_json(
+            model_entry.get("expected_input_json"),
+            payload,
+        )
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Input does not match expected format: {error}",
             )
 
         container_url = f"http://127.0.0.1:{port}/predict"
