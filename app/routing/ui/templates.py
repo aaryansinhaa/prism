@@ -217,11 +217,97 @@ def upload_success_response(
 </div>"""
 
 
+def _build_sample_from_schema(schema: Any) -> Any:
+    if not isinstance(schema, dict):
+      return {}
+
+    schema_type = schema.get("type")
+    if schema_type == "object" or "properties" in schema:
+      result: dict[str, Any] = {}
+      properties = schema.get("properties", {})
+      required = schema.get("required", [])
+      if isinstance(properties, dict):
+        keys = list(properties.keys())
+        for key in keys:
+          value_schema = properties.get(key, {})
+          if key in required or len(result) < 3:
+            result[key] = _build_sample_from_schema(value_schema)
+      return result
+
+    if schema_type == "array":
+      item_schema = schema.get("items", {})
+      return [_build_sample_from_schema(item_schema)]
+
+    if schema_type == "string":
+      return "text"
+    if schema_type == "integer":
+      return 1
+    if schema_type == "number":
+      return 1.0
+    if schema_type == "boolean":
+      return True
+    if schema_type == "null":
+      return None
+
+    return {}
+
+
+def _contract_hints(expected_input_json: str | None) -> tuple[str, str | None]:
+    if not expected_input_json:
+      return "", None
+
+    try:
+      parsed = json.loads(expected_input_json)
+    except json.JSONDecodeError:
+      return "", None
+
+    if not isinstance(parsed, dict):
+      return "", json.dumps(parsed, indent=2, ensure_ascii=False)
+
+    schema_like = any(
+      key in parsed
+      for key in ("type", "properties", "required", "items", "enum", "additionalProperties")
+    )
+    if not schema_like:
+      return "", json.dumps(parsed, indent=2, ensure_ascii=False)
+
+    hints: list[str] = []
+    required = parsed.get("required", [])
+    if isinstance(required, list) and required:
+      hints.append("Required fields: " + ", ".join(str(item) for item in required))
+
+    properties = parsed.get("properties", {})
+    if isinstance(properties, dict) and properties:
+      typed_fields: list[str] = []
+      for field_name, field_schema in properties.items():
+        field_type = "any"
+        if isinstance(field_schema, dict) and isinstance(field_schema.get("type"), str):
+          field_type = field_schema["type"]
+        typed_fields.append(f"{field_name}: {field_type}")
+      hints.append("Field types: " + ", ".join(typed_fields))
+
+    additional = parsed.get("additionalProperties")
+    if additional is False:
+      hints.append("Additional fields are not allowed")
+
+    sample_payload = _build_sample_from_schema(parsed)
+    sample_json = json.dumps(sample_payload, indent=2, ensure_ascii=False)
+
+    if not hints:
+      return "", sample_json
+
+    hints_html = "".join(
+      f"<li class=\"text-xs text-gray-700\">{escape_html(hint)}</li>" for hint in hints
+    )
+    return f"<ul class=\"list-disc list-inside space-y-1 mt-2\">{hints_html}</ul>", sample_json
+
+
 def predict_page(
     model_name: str | None = None,
     model_description: str | None = None,
     expected_input_json: str | None = None,
 ) -> str:
+    hints_html, sample_json = _contract_hints(expected_input_json)
     model_meta_block = ""
     if model_name or model_description or expected_input_json:
         name_line = f"<p class=\"text-sm text-black mb-1\"><strong>Name:</strong> {escape_html(model_name or '')}</p>" if model_name else ""
@@ -231,6 +317,8 @@ def predict_page(
             expected_line = (
                 "<p class=\"text-sm text-black mb-1\"><strong>Expected Input JSON:</strong></p>"
                 f"<pre class=\"text-xs text-black bg-white border border-black rounded-md p-3 overflow-auto\">{escape_html(expected_input_json)}</pre>"
+                + ("<p class=\"text-sm text-black mt-3 mb-1\"><strong>Input Contract Hints:</strong></p>" + hints_html if hints_html else "")
+                + (f"<p class=\"text-sm text-black mt-3 mb-1\"><strong>Sample Payload:</strong></p><pre class=\"text-xs text-black bg-white border border-black rounded-md p-3 overflow-auto\">{escape_html(sample_json)}</pre>" if sample_json else "")
             )
         model_meta_block = (
             "<div class=\"bg-white p-4 rounded-md border border-black mb-6 space-y-1\">"

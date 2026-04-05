@@ -269,6 +269,50 @@ class TestPredictionWorkflow:
             assert "alert-error" in response.text
             assert "expected format" in response.text.lower()
 
+    def test_predict_page_shows_contract_hints_and_sample_payload(self, monkeypatch, tmp_path):
+        """IT: /predict page renders schema hints and generated sample payload."""
+        model_id = "hinted-model"
+        contract = {
+            "type": "object",
+            "required": ["input"],
+            "properties": {
+                "input": {
+                    "type": "array",
+                    "items": {"type": "number"},
+                },
+                "threshold": {"type": "number"},
+            },
+            "additionalProperties": False,
+        }
+
+        registry_file = tmp_path / "containers.json"
+        monkeypatch.setenv("MODEL_CONTAINER_REGISTRY_PATH", str(registry_file))
+        registry_file.write_text(
+            json.dumps(
+                {
+                    "models": {
+                        model_id: {
+                            "model_id": model_id,
+                            "container_id": "hinted-container",
+                            "port": 9994,
+                            "name": "Hinted Model",
+                            "description": "Model with schema hints",
+                            "expected_input_json": json.dumps(contract),
+                        }
+                    }
+                }
+            )
+        )
+
+        response = client.get(f"/predict?model_id={model_id}")
+
+        assert response.status_code == 200
+        assert "Input Contract Hints" in response.text
+        assert "Required fields: input" in response.text
+        assert "Field types: input: array, threshold: number" in response.text
+        assert "Additional fields are not allowed" in response.text
+        assert "Sample Payload" in response.text
+
 
 class TestHTMLComponentsIntegration:
     """IT: Test that HTML components render correctly in full page context."""
