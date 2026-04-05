@@ -37,6 +37,7 @@ from app.services.dashboard_service import (
     ModelRegistryService,
 )
 from app.utils.docker_utils import delete_container, get_container_logs
+from app.utils.qr_utils import generate_qr_data_uri
 
 router = APIRouter(tags=["frontend"])
 
@@ -212,9 +213,12 @@ async def upload_and_run_ui(
 
         tunnel_url = None
         tunnel_warning = None
+        qr_data_uri = None
         if enable_tunnel:
             try:
                 tunnel_url, _ = await start_tunnel(host_port, model_id)
+                if tunnel_url:
+                    qr_data_uri = generate_qr_data_uri(tunnel_url)
             except RuntimeError as exc:
                 tunnel_warning = str(exc)
                 print(f"Warning: Failed to start tunnel for {model_id}: {exc}")
@@ -234,6 +238,7 @@ async def upload_and_run_ui(
             port=host_port,
             tunnel_url=tunnel_url,
             tunnel_warning=tunnel_warning,
+            qr_data_uri=qr_data_uri,
         )
         # Add button to return to dashboard
         return success_html + '<div class="mt-6"><a href="/" hx-boost="true" class="btn-secondary w-full text-center block">Return to Dashboard</a></div>'

@@ -167,11 +167,20 @@ def upload_success_response(
   port: int,
   tunnel_url: str | None = None,
   tunnel_warning: str | None = None,
+  qr_data_uri: str | None = None,
 ) -> str:
     ui_url = f"http://127.0.0.1:8000/predict?model_id={model_id}"
     api_url = f"http://127.0.0.1:8000/models/{model_id}/predict"
     public_block = ""
+    qr_section = ""
     if tunnel_url:
+        qr_for_tunnel = ""
+        if qr_data_uri:
+            qr_for_tunnel = f"""
+      <div class=\"flex justify-center mt-3\">
+        <img src=\"{qr_data_uri}\" alt=\"QR Code for public URL\" class=\"border border-black\" style=\"width:200px;height:200px;\">
+      </div>
+"""
         public_block = f"""
     <div>
       <p class=\"text-sm font-medium text-black mb-2\">Public Tunnel URL 🌐</p>
@@ -180,6 +189,7 @@ def upload_success_response(
         <button type=\"button\" class=\"btn-secondary whitespace-nowrap\" onclick=\"copyToClipboard('{tunnel_url}', this)\">Copy</button>
       </div>
       <p class=\"text-xs text-gray-600 mt-2\">Share this link with anyone to let them send predictions without exposing your local IP.</p>
+      {qr_for_tunnel}
     </div>
 """
 
