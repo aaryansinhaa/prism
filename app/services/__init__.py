@@ -6,10 +6,12 @@ from app.services.dashboard_service import (
     DashboardService,
     ModelRegistryService,
 )
+from app.services.health_monitor_service import HealthMonitorService
 
 __all__ = [
     "ModelRegistryService",
     "ContainerService",
     "DashboardService",
     "ContainerLogsService",
+    "HealthMonitorService",
 ]
