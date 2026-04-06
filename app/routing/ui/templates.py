@@ -121,7 +121,11 @@ def base_layout(title: str, content: str, show_sidebar: bool = False, active_nav
       
       // HTMX confirmation handler
       htmx.on('htmx:confirm', function(e) {{
-        if (!window.confirm(e.detail.question)) {{
+        const question = e.detail && e.detail.question;
+        if (!question) {{
+          return;
+        }}
+        if (!window.confirm(question)) {{
           e.preventDefault();
         }}
       }});
@@ -471,7 +475,7 @@ def dashboard_page_with_cards(model_cards: list, has_models: bool) -> str:
     {"".join(card_html)}
 </div>
 
-<div id="modal-logs-container" class="hidden"></div>
+<div id="modal-logs-container"></div>
 """
 
 

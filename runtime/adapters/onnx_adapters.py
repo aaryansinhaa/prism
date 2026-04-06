@@ -88,17 +88,33 @@ class ONNXModel(BaseModel):
 			if name not in payload:
 				raise ModelPredictError(f"Missing input '{name}' for ONNX model.")
 			arr = np.asarray(payload[name])
-			# If model expects float input, coerce numeric arrays to float32.
-			# Determine expected rank from session metadata when available.
+			# Determine expected rank/shape from session metadata when available.
 			try:
 				expected_shape = self._session.get_inputs()[idx].shape
 				expected_rank = len(expected_shape) if expected_shape is not None else arr.ndim
 			except Exception:
+				expected_shape = None
 				expected_rank = arr.ndim
 
-			# If user supplied a 1-D list but model expects 2-D (N,1), expand dims.
+			# If user supplied a 1-D list but model expects 2-D, choose a stable orientation.
+			# Prefer row-vector (1, n_features) for common classifier/regressor signatures.
 			if arr.ndim == 1 and expected_rank > 1:
-				arr = np.expand_dims(arr, axis=1)
+				reshaped = False
+				if expected_rank == 2 and isinstance(expected_shape, (list, tuple)) and len(expected_shape) == 2:
+					first_dim, second_dim = expected_shape
+
+					if isinstance(second_dim, int) and second_dim == arr.size:
+						arr = arr.reshape(1, -1)
+						reshaped = True
+					elif isinstance(second_dim, int) and second_dim == 1:
+						arr = arr.reshape(-1, 1)
+						reshaped = True
+					elif isinstance(first_dim, int) and first_dim == arr.size:
+						arr = arr.reshape(-1, 1)
+						reshaped = True
+
+				if not reshaped:
+					arr = arr.reshape(1, -1)
 
 			# Coerce to float32 where appropriate (most ONNX regressors/classifiers use float).
 			if arr.dtype != np.float32:

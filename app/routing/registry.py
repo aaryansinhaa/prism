@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException
 from starlette import status
 
 from app.registry.container_registry import registry_path
+from app.services.dashboard_service import ModelRegistryService
 
 router = APIRouter(prefix="/registry", tags=["registry"])
 
@@ -41,3 +42,13 @@ def get_model_registry(model_id: str) -> Dict[str, Any]:
         )
 
     return models[model_id]
+
+
+@router.post("/prune-stale")
+def prune_stale_registry_entries() -> Dict[str, Any]:
+    """Remove registry entries for containers that no longer exist."""
+    removed = ModelRegistryService.prune_stale_models()
+    return {
+        "removed_count": len(removed),
+        "removed_model_ids": removed,
+    }

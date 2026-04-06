@@ -8,6 +8,20 @@ from typing import Optional
 from app.models.model import ContainerStatus
 
 
+def container_exists(container_id: str) -> bool:
+    """Return whether a Docker container exists."""
+    try:
+        result = subprocess.run(
+            ["docker", "inspect", container_id],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 def get_container_status(container_id: str) -> ContainerStatus:
     """Check if Docker container is running."""
     try:

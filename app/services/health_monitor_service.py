@@ -56,6 +56,13 @@ class HealthMonitorService:
 
     @staticmethod
     async def run_monitor_cycle() -> MonitorCycleResult:
+        removed_model_ids = await asyncio.to_thread(ModelRegistryService.prune_stale_models)
+        if removed_model_ids:
+            print(
+                "Health monitor: pruned stale registry entries: "
+                + ", ".join(removed_model_ids)
+            )
+
         models = ModelRegistryService.load_all_models()
         restarted = 0
 

@@ -1,5 +1,6 @@
 import json
 import time
+import os
 import sys
 from pathlib import Path
 
@@ -14,12 +15,10 @@ from app.main import app
 
 
 def test_predict_fallback_or_model():
-    """Call `/predict` and assert a 200 JSON response with 'predictions'.
+    """Call `/predict` and assert a 200 JSON response with 'predictions'."""
+    model_path = str(ROOT / "model_store" / "linear_regression.onnx")
+    os.environ["MODEL_PATH"] = model_path
 
-    The repository may register a real ONNX/sklearn model or the fallback
-    development model. Either way, the endpoint should respond with
-    a JSON object containing a `predictions` key.
-    """
     payload = {"input": [1, 2, 3]}
     with TestClient(app) as client:
         response = client.post("/predict", json=payload)
@@ -36,9 +35,24 @@ def test_predict_shape_handling():
     the runtime accepts a 1-D list and returns a prediction rather than
     raising a 4xx/5xx.
     """
+    model_path = str(ROOT / "model_store" / "linear_regression.onnx")
+    os.environ["MODEL_PATH"] = model_path
+
     payload = {"input": [1.0, 2.0, 3.0]}
     with TestClient(app) as client:
         response = client.post("/predict", json=payload)
         assert response.status_code == 200, response.text
         data = response.json()
         assert "predictions" in data
+
+
+def test_predict_returns_503_without_model_path(monkeypatch):
+    """Verify `/predict` is unavailable when MODEL_PATH is not configured."""
+    monkeypatch.delenv("MODEL_PATH", raising=False)
+
+    payload = {"input": [1.0, 2.0, 3.0]}
+    with TestClient(app) as client:
+        response = client.post("/predict", json=payload)
+
+    assert response.status_code == 503
+    assert "model not loaded" in response.json()["detail"].lower()

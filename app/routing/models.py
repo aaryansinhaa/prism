@@ -17,6 +17,11 @@ from app.services.dashboard_service import ContainerService, ModelRegistryServic
 router = APIRouter(prefix="/models", tags=["models"])
 
 
+def _single_active_mode_enabled() -> bool:
+    value = os.environ.get("PRISM_SINGLE_ACTIVE_MODEL", "true").lower()
+    return value not in {"0", "false", "no", "off"}
+
+
 def _clean_text(value: str | None) -> str | None:
     if value is None:
         return None
@@ -89,6 +94,9 @@ async def upload_and_run_model(
         except RuntimeError as exc:
             # Tunnel startup is not fatal - log and continue
             print(f"Warning: Failed to start tunnel for {model_id}: {exc}")
+
+    if _single_active_mode_enabled():
+        await ContainerService.kill_all_models_async()
 
     registry_record = register_container(
         model_id=model_id,

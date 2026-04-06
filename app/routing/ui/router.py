@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from typing import Any, Dict
 
 import httpx
@@ -40,6 +41,11 @@ from app.utils.docker_utils import delete_container, get_container_logs
 from app.utils.qr_utils import generate_qr_data_uri
 
 router = APIRouter(tags=["frontend"])
+
+
+def _single_active_mode_enabled() -> bool:
+    env_value = os.environ.get("PRISM_SINGLE_ACTIVE_MODEL", "true").lower()
+    return env_value not in {"0", "false", "no", "off"}
 
 
 def _clean_text(value: str | None) -> str | None:
@@ -222,6 +228,9 @@ async def upload_and_run_ui(
             except RuntimeError as exc:
                 tunnel_warning = str(exc)
                 print(f"Warning: Failed to start tunnel for {model_id}: {exc}")
+
+        if _single_active_mode_enabled():
+            await ContainerService.kill_all_models_async()
 
         register_container(
             model_id=model_id,

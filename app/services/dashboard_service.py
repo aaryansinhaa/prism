@@ -19,6 +19,7 @@ from app.registry.container_registry import registry_path
 from app.utils.docker_utils import (
     build_api_url,
     build_prediction_url,
+    container_exists,
     delete_container,
     get_container_logs,
     get_container_status,
@@ -89,6 +90,42 @@ class ModelRegistryService:
             return count
         except (OSError, json.JSONDecodeError):
             return 0
+
+    @staticmethod
+    def prune_stale_models() -> list[str]:
+        """Remove registry entries whose Docker containers no longer exist."""
+        path = registry_path()
+        if not path.exists():
+            return []
+
+        try:
+            with path.open("r", encoding="utf-8") as file:
+                data = json.load(file)
+
+            models = data.get("models", {})
+            if not isinstance(models, dict):
+                return []
+
+            removed_model_ids: list[str] = []
+            for model_id, metadata in list(models.items()):
+                if not isinstance(metadata, dict):
+                    continue
+
+                container_id = metadata.get("container_id")
+                if not isinstance(container_id, str) or not container_id:
+                    continue
+
+                if not container_exists(container_id):
+                    del models[model_id]
+                    removed_model_ids.append(model_id)
+
+            if removed_model_ids:
+                with path.open("w", encoding="utf-8") as file:
+                    json.dump(data, file, indent=2)
+
+            return removed_model_ids
+        except (OSError, json.JSONDecodeError):
+            return []
 
 
 class ContainerService:
