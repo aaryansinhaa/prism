@@ -23,6 +23,9 @@ dependencies = [
 [tool.poetry]
 packages = [{include = "app"}, {include = "runtime"}, {include = "model_container"}]
 
+[project.scripts]
+prism = "app.cli:main"
+
 [dependency-groups]
 dev = [
     "black (>=26.1.0,<27.0.0)",

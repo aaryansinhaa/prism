@@ -1,0 +1,13 @@
+repos:
+  - repo: local
+    hooks:
+      - id: prism-format
+        name: prism format
+        entry: poetry run prism format .
+        language: system
+        pass_filenames: false
+      - id: prism-lint
+        name: prism lint
+        entry: poetry run prism lint .
+        language: system
+        pass_filenames: false
