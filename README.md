@@ -1,428 +1,351 @@
 # PRISM
 
-### Predictive Runtime and Inference Serving Module
+**Predictive Runtime and Inference Serving Module**
 
-> A lightweight, containerized, laptop-native inference serving system for publishing predictive models through a unified public interface.
-
----
-
-## 1. Motivation
-
-Machine learning practitioners frequently build **toy models, prototypes, or research artifacts** that they want to share publicly.
-
-However:
-
-* Sharing notebooks exposes implementation details.
-* Deploying to cloud platforms introduces cost and operational overhead.
-* Traditional serving frameworks assume production-scale infrastructure.
-* There is no simple “publish model → get link” workflow for local-first users.
-
-**PRISM solves this problem.**
-
-PRISM allows users to:
-
-1. Upload a trained predictive model
-2. Automatically isolate it inside a container
-3. Expose a unified inference API
-4. Generate a public link for external access
-
-The core philosophy:
-
-> Your laptop is your inference server.
+PRISM is a local-first model serving platform that lets you upload ML model artifacts, build isolated Docker runtimes automatically, and serve predictions through a unified FastAPI interface and web dashboard.
 
 ---
 
-## 2. Research Inspiration
+## Why PRISM
 
-PRISM is inspired by ideas from modern ML serving and systems research:
+Most model serving tools are optimized for production clusters and cloud infrastructure. PRISM is designed for fast iteration and lightweight sharing from a single machine.
 
-### 2.1 Clipper – Low Latency Prediction Serving
+With PRISM you can:
 
-Clipper: A Low-Latency Online Prediction Serving System
-* [Paper Link](https://www.usenix.org/system/files/conference/nsdi17/nsdi17-crankshaw.pdf)
-* Unified model abstraction
-* Adaptive batching
-* Straggler mitigation
-* Container isolation
-
-### 2.2 Multi-Model Serving Systems
-
-Managed MLFlow: A Unified Platform for ML Lifecycle
-
-* Model lifecycle management
-* Versioning
-* Model registry concepts
-
-### 2.3 Serverless / Lightweight Model Deployment
-
-The Case for Learned Index Structures
-(Conceptual inspiration for rethinking infrastructure simplicity and modularity.)
-
-### 2.4 High-Performance ML Systems Engineering
-
-Ray: A Distributed Framework for Emerging AI Applications
-
-* Actor-based isolation
-* Lightweight distributed abstractions
-* Multi-model concurrency patterns
-
-PRISM adapts these ideas for a **local-first, container-native serving platform**.
+- Upload `.pkl`, `.pickle`, `.joblib`, and `.onnx` models
+- Build model-specific Docker images automatically
+- Launch and manage containerized inference runtimes
+- Call predictions via stable API routes
+- Use a browser dashboard for deployment, logs, prediction testing, and lifecycle actions
+- Optionally expose model endpoints via reverse tunnel
 
 ---
 
-## 3. System Overview
+## Core Capabilities
 
-PRISM is a local model serving runtime that:
-
-* Accepts model uploads
-* Automatically containerizes them
-* Exposes a standardized inference interface
-* Generates a public shareable endpoint
+- **Containerized model isolation**: Each deployed model runs in its own container
+- **Unified inference API**: Predict through `POST /models/{model_id}/predict`
+- **Model registry**: Tracks container IDs, ports, metadata, and optional tunnel URL
+- **Access control**: Optional API key auth + in-memory rate limiting for public inference route
+- **Health monitoring**: Background monitor can restart stopped containers and prune stale entries
+- **Developer CLI**: `prism` command for running/stopping server, linting, and formatting
 
 ---
 
-## 4. Architecture
+## Architecture (High Level)
 
-```
-Client
-   │
-   ▼
-Public Link Gateway
-   │
-   ▼
-PRISM Router
-   │
-   ├── Model Container A
-   ├── Model Container B
-   └── Model Container C
+```text
+Client (UI / API)
+       │
+       ▼
+PRISM FastAPI App
+       │
+       ├── /models/* endpoints (upload, run, list, delete, predict proxy)
+       ├── /registry/* endpoints
+       ├── /health/monitor endpoint
+       └── Dashboard + HTMX UI routes
+               │
+               ▼
+        Docker Model Containers
+          (one per model)
 ```
 
-Each model:
+---
 
-* Runs in an isolated container
-* Exposes a standardized `/predict` endpoint
-* Is managed by a local runtime registry
+## Tech Stack
+
+- Python 3.12+
+- FastAPI + Uvicorn
+- Docker (for model runtime isolation)
+- ONNX Runtime and scikit-learn adapters
+- Poetry for dependency management
+- Pytest, Ruff, Black for quality checks
 
 ---
 
-## 5. System Design
+## Prerequisites
 
-### 5.1 Model Upload Flow
+Before running PRISM, ensure you have:
 
-1. User uploads:
-
-   * `.pkl` (scikit-learn)
-   * `.onnx`
-2. PRISM validates format
-3. PRISM generates container spec
-4. Container is launched
-5. Model is registered in the runtime registry
-6. Public link is generated
+1. **Python** `>=3.12`
+2. **Poetry** installed
+3. **Docker** installed and daemon running
+4. (Optional) **ngrok authtoken** for public tunnels
 
 ---
 
-### 5.2 Container Isolation
+## Installation
 
-Each model runs in its own container to ensure:
-
-* Dependency isolation
-* Fault isolation
-* Resource boundaries
-* Hot-swappable deployment
-
-Containers expose:
-
-```
-POST /predict
+```bash
+poetry install
+poetry shell
 ```
 
-PRISM communicates internally via RPC or HTTP.
+Or run commands without activating the shell:
 
----
-
-### 5.3 Unified Model Interface
-
-All models must implement:
-
-```python
-class BaseModel:
-    def predict(self, input):
-        ...
+```bash
+poetry run <command>
 ```
 
-Supported in v1:
+---
 
-* Scikit-learn
-* ONNX Runtime
+## Quick Start
 
-Future versions may support:
+### 1) Start the PRISM server
 
-* TorchScript
-* TensorFlow SavedModel
+Foreground mode:
+
+```bash
+poetry run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Detached mode via CLI:
+
+```bash
+poetry run prism run 8000 --reload
+```
+
+Stop detached server:
+
+```bash
+poetry run prism stop
+```
+
+> Tip: run `pkill -f "app.core.tunnel_worker" || true
+rm -rf /tmp/prism/tunnels` before uploading a model to ensure no existing tunnel is working in the background to interfere with prism's tunneling. 
+### 2) Open the dashboard
+
+Visit:
+
+```text
+http://127.0.0.1:8000/
+```
+
+### 3) Upload and run a model
+
+Use UI route:
+
+```text
+http://127.0.0.1:8000/upload-model
+```
+
+Or API:
+
+```bash
+curl -X POST http://127.0.0.1:8000/models/upload-and-run \
+  -F "file=@model_store/linear_regression.pkl" \
+  -F "model_name=Linear Regression" \
+  -F "model_description=Demo model" \
+  -F 'expected_input_json={"feature1": 0.1}'
+```
+
+### 4) Predict
+
+```bash
+curl -X POST http://127.0.0.1:8000/models/<model_id>/predict \
+  -H "Content-Type: application/json" \
+  -d '{"feature1": 0.1}'
+```
 
 ---
 
-## 6. Core System Features
+## Screenshots
 
-### 6.0 Public Model Access Control (PRISM-9)
+### Dashboard Overview
 
-The public endpoint `POST /models/{model_id}/predict` now supports:
+![PRISM Dashboard Overview](docs/screenshots/dashboard.png)
+![PRISM Dashboard Overview with Uploaded Model](docs/screenshots/dashboard_1.png)
 
-* **API keys** (`X-API-Key` or `Authorization: Bearer <key>`)
-* **Rate limiting** (in-memory sliding window)
-* **Request logging** (model, principal fingerprint, IP, status, latency)
+### Upload Model Flow
 
-Configuration via environment variables:
+![PRISM Upload Model Page-1](docs/screenshots/upload_model.png)
+![PRISM Uploaded Model Page-1](docs/screenshots/uploaded_model_1.png)
+![PRISM Uploaded Model Page-2](docs/screenshots/uploaded_model_2.png)
 
-* `PRISM_API_KEYS`: comma-separated API keys (e.g. `key1,key2`)
-   * If empty/unset, endpoint runs in open mode.
-* `PRISM_RATE_LIMIT_REQUESTS`: max requests per window (default: `60`)
-* `PRISM_RATE_LIMIT_WINDOW_SECONDS`: window size in seconds (default: `60`)
+
+
+### Prediction Interface
+
+![PRISM Prediction Interface](docs/screenshots/prediction.png)
+![PRISM Prediction Interface after prediction](docs/screenshots/predicted.png)
+
+
+### Model Logs View
+
+![PRISM Model Logs](docs/screenshots/model_logs.png)
+
+---
+
+## API Overview
+
+### Health
+
+- `GET /` → basic service identity
+- `GET /health/monitor` → background monitor status and last cycle metrics
+
+### Models
+
+- `POST /models/upload` → upload + build image only
+- `POST /models/upload-and-run` → upload + build + run container + register model
+- `POST /models` → alias of upload-and-run flow
+- `GET /models` → list deployed models
+- `GET /models/{model_id}` → model metadata
+- `DELETE /models/{model_id}` → stop/remove container + delete registry record
+- `POST /models/{model_id}/predict` → proxy inference request to container
+
+### Registry
+
+- `GET /registry` → full registry payload
+- `GET /registry/{model_id}` → one model registry entry
+- `POST /registry/prune-stale` → remove stale records
+
+### Dashboard/UI Routes
+
+- `GET /` → dashboard
+- `GET /upload-model` → upload page
+- `GET /model-logs` → logs page
+- `GET /predict?model_id=...` → prediction UI
+- `POST /api/upload-and-run-ui` → UI upload+deploy action
+- `POST /predict-result` → UI prediction action
+
+---
+
+## Model Lifecycle (What Happens Internally)
+
+When you upload a model through upload-and-run:
+
+1. File is saved under `model_store/uploads/<model_id>/`
+2. Runtime files (`runtime.py`, `requirements.txt`, `entrypoint.sh`) are copied into build context
+3. PRISM generates a model-specific `Dockerfile`
+4. PRISM builds image `prism_model_<model_id>`
+5. PRISM starts container on an allocated localhost port
+6. PRISM writes metadata to registry (`app/registry/containers.json` by default)
+
+---
+
+## Configuration
+
+Environment variables commonly used in PRISM:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MODEL_UPLOAD_ROOT` | `model_store/uploads` | Upload/build context root |
+| `MODEL_CONTAINER_REGISTRY_PATH` | `app/registry/containers.json` | Registry file location |
+| `PRISM_SINGLE_ACTIVE_MODEL` | `true` | If true, old deployments are removed when deploying a new one |
+| `PRISM_ENABLE_HEALTH_MONITOR` | `true` | Enables background health monitor |
+| `PRISM_HEALTH_MONITOR_INTERVAL_SECONDS` | `15` | Monitor cycle interval |
+| `ENABLE_TUNNEL` | `false` | Enables tunnel creation in `/models/upload-and-run` flow |
+| `NGROK_AUTHTOKEN` | unset | Required for ngrok tunnel worker |
+| `PRISM_API_KEYS` | unset | Comma-separated API keys for protected inference |
+| `PRISM_RATE_LIMIT_REQUESTS` | `60` | Requests per rate-limit window |
+| `PRISM_RATE_LIMIT_WINDOW_SECONDS` | `60` | Rate-limit window duration |
+| `PRISM_TUNNEL_START_TIMEOUT` | `30` | Timeout for tunnel worker startup |
 
 Example:
 
 ```bash
-export PRISM_API_KEYS="my-public-key-1,my-public-key-2"
+export PRISM_API_KEYS="key-one,key-two"
 export PRISM_RATE_LIMIT_REQUESTS="120"
 export PRISM_RATE_LIMIT_WINDOW_SECONDS="60"
+export NGROK_AUTHTOKEN="<your-token>"
 ```
 
-Request example:
+---
+
+## Access Control for Public Inference
+
+The endpoint `POST /models/{model_id}/predict` supports:
+
+- API key via `X-API-Key`
+- API key via `Authorization: Bearer <token>`
+- In-memory sliding-window rate limiting
+
+If `PRISM_API_KEYS` is not set, endpoint runs in open mode.
+
+Example request with API key:
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/models/<model_id>/predict" \
-   -H "Content-Type: application/json" \
-   -H "X-API-Key: my-public-key-1" \
-   -d '{"input":[1.0]}'
-```
-
-### 6.1 Request Batching
-
-PRISM implements dynamic batching:
-
-* Accumulates requests in a queue
-* Triggers inference when:
-
-  * Batch size threshold is reached
-  * Latency deadline expires
-
-Benefits:
-
-* Improved throughput
-* Better CPU utilization
-* Reduced per-request overhead
-
----
-
-### 6.2 Prediction Caching
-
-PRISM supports:
-
-* In-memory LRU caching
-* Optional Redis-backed cache
-
-This reduces repeated computation for:
-
-* Deterministic models
-* Repeated evaluation scenarios
-
----
-
-### 6.3 Multi-Modal Input Support
-
-PRISM supports:
-
-* JSON structured input
-* Numeric arrays
-* Text input (for NLP models)
-* Image tensors (base64 or binary)
-
-Input normalization layer ensures:
-
-* Format validation
-* Schema enforcement
-* Type conversion
-
----
-
-### 6.4 Multi-Model Hosting
-
-Users can host:
-
-* Multiple models
-* Multiple versions
-* Different frameworks
-
-All models share:
-
-* One public gateway
-* Unified API contract
-* Independent containers
-
----
-
-## 7. Public Link Generation
-
-PRISM provides:
-
-```
-https://<user-ip>:<port>/model/<model-id>/predict
-```
-
-Future support:
-
-* Reverse proxy tunneling (ngrok-style)
-* Authentication tokens
-* Rate limiting
-
----
-
-## 8. Performance Goals (v1)
-
-Target metrics:
-
-* P50 latency < 20ms (local inference)
-* Adaptive batching support
-* Multi-model concurrency
-* Graceful degradation under load
-
----
-
-## 9. Technical Stack
-
-* Python
-* FastAPI
-* ONNX Runtime
-* Scikit-learn
-* Docker
-* Poetry (dependency management)
-* Uvicorn (ASGI server)
-
----
-
-## 10. Limitations (v1)
-
-* Only predictive models supported
-* No distributed scaling
-* No autoscaling
-* No GPU scheduling
-* Local-only runtime
-
----
-
-## 11. Why PRISM is Interesting (From a Systems Perspective)
-
-PRISM explores:
-
-* Model serving abstraction layers
-* Container-based isolation
-* Latency-aware batching
-* Multi-tenant inference on edge devices
-* Laptop-native model deployment
-
-Unlike cloud serving systems, PRISM focuses on:
-
-> Local-first inference publishing with minimal operational overhead.
-
----
-
-## 12. Future Work
-
-* Model versioning
-* A/B testing
-* Model ensembling
-* Straggler mitigation
-* Resource-aware scheduling
-* GPU-aware batching
-* Horizontal scaling cluster mode
-* WASM sandbox runtime
-
----
-
-## 13. Example Usage
-
-Upload model:
-
-```
-prism upload churn_model.pkl
-```
-
-Server response:
-
-```
-Model deployed successfully.
-Public endpoint:
-http://192.168.0.14:8000/model/churn/predict
-```
-
-Inference request:
-
-```bash
-curl -X POST \
-  http://192.168.0.14:8000/model/churn/predict \
+curl -X POST http://127.0.0.1:8000/models/<model_id>/predict \
   -H "Content-Type: application/json" \
-  -d '{"input": [ ... ]}'
+  -H "X-API-Key: key-one" \
+  -d '{"feature1": 0.1}'
 ```
-
-HTTP upload API (auto-build image per model):
-
-```bash
-curl -X POST \
-   http://127.0.0.1:8000/upload \
-   -F "file=@./churn_model.pkl"
-```
-
-Server behavior on upload:
-
-1. Saves model file under `model_store/uploads/<model_id>/`
-2. Generates model-specific `Dockerfile`
-3. Runs `docker build -t prism_model_<model_id> .` in that directory
-
-Response includes:
-
-* `model_id`
-* `image_tag`
-* `model_path`
-* `dockerfile_path`
-* `build_context`
-
-HTTP upload-and-run API (build + start container):
-
-```bash
-curl -X POST \
-   http://127.0.0.1:8000/upload-and-run \
-   -F "file=@./churn_model.pkl"
-```
-
-Additional response fields:
-
-* `container_name`
-* `container_id`
-* `host_port`
-* `predict_url`
-
-Registry tracking on `upload-and-run`:
-
-* Stores `model_id`, `container_id`, and `port`
-* Default file: `app/registry/containers.json`
-* Override path with `MODEL_CONTAINER_REGISTRY_PATH`
 
 ---
 
-## 14. Benchmarks
+## Development Commands
 
-Baseline (bare-metal) latency and throughput numbers, plus reproduction steps, now live in `BENCHMARKS.md`. Treat those as source-of-truth when evaluating future runtime overhead.
+Run lint and format:
+
+```bash
+poetry run prism lint .
+poetry run prism format .
+```
+
+Run tests:
+
+```bash
+poetry run pytest -q
+```
+
+Run selected tests:
+
+```bash
+poetry run pytest tests/test_frontend.py -v
+poetry run pytest tests/test_model_lifecycle_endpoints.py -v
+```
 
 ---
 
-# Closing Vision
+## Benchmarks
 
-PRISM aims to make model deployment as simple as:
+Benchmark methodology and latest results are documented in `BENCHMARKS.md`.
 
-> Train → Upload → Share Link
+Run benchmark script:
 
-No cloud.
-No notebook exposure.
-No infrastructure complexity.
+```bash
+poetry run python scripts/benchmark_models.py --iterations 2000
+```
 
-Just a predictive runtime layer sitting on your own machine.
+---
+
+## Troubleshooting
+
+- **Docker errors during upload/build**: Ensure Docker daemon is running and socket is accessible
+- **Model not reachable**: Check container status via dashboard/logs and validate registry port entry
+- **`401` on predict endpoint**: Verify request API key when `PRISM_API_KEYS` is configured
+- **`429` responses**: Increase rate-limit vars or reduce request burst frequency
+- **Tunnel startup failure**: Confirm `NGROK_AUTHTOKEN` and retry after worker startup delay
+
+---
+
+## Repository Structure
+
+```text
+app/
+  main.py                 # FastAPI app bootstrap
+  cli.py                  # prism CLI command
+  routing/                # API + UI routes
+  services/               # dashboard + health monitor services
+  registry/containers.json# model container registry (default)
+runtime/                  # model loader/runtime adapters
+model_container/          # template files copied into per-model build contexts
+model_store/              # sample artifacts + generated uploads
+tests/                    # API, UI, and service tests
+scripts/benchmark_models.py
+```
+
+---
+
+## Credits
+
+- **Author**: Aaryan Kumar Sinha
+- **Project**: PRISM (Predictive Runtime and Inference Serving Module)
+- **Research inspiration**: practical ideas from systems such as Clipper and broader model-serving/runtime literature
+- **Open-source ecosystem**: FastAPI, Uvicorn, Docker, ONNX Runtime, scikit-learn, Pytest, Ruff, Black
+
+---
+
+## License
+
+MIT License.
