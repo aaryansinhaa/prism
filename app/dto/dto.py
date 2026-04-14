@@ -31,6 +31,7 @@ class ModelCardDTO:
     predict_url: str
     api_url: str
     tunnel_url: Optional[str] = None
+    tunnel_prediction_url: Optional[str] = None
 
 
 @dataclass

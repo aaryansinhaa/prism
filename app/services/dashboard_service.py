@@ -195,6 +195,10 @@ class DashboardService:
 
         for model_id, metadata in sorted(models.items()):
             status = get_container_status(metadata.container_id)
+            tunnel_prediction_url = None
+            if metadata.tunnel_url:
+                # Tunnel endpoint allows ONLY access to this specific model's prediction interface
+                tunnel_prediction_url = f"{metadata.tunnel_url}/tunnel/{model_id}"
             card = ModelCardDTO(
                 model_id=model_id,
                 model_name=metadata.name or model_id,
@@ -208,6 +212,7 @@ class DashboardService:
                 predict_url=build_prediction_url(model_id),
                 api_url=build_api_url(model_id),
                 tunnel_url=metadata.tunnel_url,
+                tunnel_prediction_url=tunnel_prediction_url,
             )
             model_cards.append(card)
 

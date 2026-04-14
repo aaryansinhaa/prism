@@ -178,6 +178,10 @@ def upload_success_response(
     public_block = ""
     qr_section = ""
     if tunnel_url:
+        # The tunnel endpoint is specifically for this model only
+        # Clients can ONLY access: https://xxx.ngrok-free.dev/tunnel/{model_id}
+        # They cannot access any other model or the dashboard
+        tunnel_endpoint = f"{tunnel_url}/tunnel/{model_id}"
         qr_for_tunnel = ""
         if qr_data_uri:
             qr_for_tunnel = f"""
@@ -187,12 +191,12 @@ def upload_success_response(
 """
         public_block = f"""
     <div>
-      <p class=\"text-sm font-medium text-black mb-2\">Public Tunnel URL 🌐</p>
+      <p class=\"text-sm font-medium text-black mb-2\">Public Prediction Link 🔮</p>
       <div class=\"flex gap-2 items-center\">
-        <code class=\"flex-1 bg-white p-3 rounded border border-black text-sm font-mono text-black overflow-auto\">{tunnel_url}</code>
-        <button type=\"button\" class=\"btn-secondary whitespace-nowrap\" onclick=\"copyToClipboard('{tunnel_url}', this)\">Copy</button>
+        <code class=\"flex-1 bg-white p-3 rounded border border-black text-sm font-mono text-black overflow-auto\">{tunnel_endpoint}</code>
+        <button type=\"button\" class=\"btn-secondary whitespace-nowrap\" onclick=\"copyToClipboard('{tunnel_endpoint}', this)\">Copy</button>
       </div>
-      <p class=\"text-xs text-gray-600 mt-2\">Share this link with anyone to let them send predictions without exposing your local IP.</p>
+      <p class=\"text-xs text-gray-600 mt-2\">Share this link with clients. They can ONLY use this model for predictions.</p>
       {qr_for_tunnel}
     </div>
 """
@@ -414,9 +418,10 @@ def dashboard_page_with_cards(model_cards: list, has_models: bool) -> str:
         if card.tunnel_url:
             tunnel_block = f'''
             <div class="bg-white border border-black rounded-lg p-3 mt-4">
-                <p class="text-xs font-medium text-black mb-2">🌐 Public Tunnel</p>
-                <code class="text-xs bg-white p-2 rounded border border-black block overflow-auto mb-2 font-mono">{card.tunnel_url}</code>
-                <button type="button" class="btn-secondary text-xs" onclick="copyToClipboard('{card.tunnel_url}', this)">Copy Link</button>
+                <p class="text-xs font-medium text-black mb-2">🌐 Public Link (Tunnel)</p>
+                <code class="text-xs bg-white p-2 rounded border border-black block overflow-auto mb-3 font-mono break-all">{card.tunnel_prediction_url}</code>
+                <button type="button" class="btn-secondary text-xs w-full" onclick="copyToClipboard('{card.tunnel_prediction_url}', this)">Copy Link</button>
+                <p class="text-xs text-gray-600 mt-2">Clients can ONLY access this model via this link.</p>
             </div>
 '''
 

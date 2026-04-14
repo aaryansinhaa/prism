@@ -210,10 +210,25 @@ Should see:
 - Check logs for specific error
 - Try restarting container
 
-### Tunnel not working
-- Set `NGROK_AUTHTOKEN` environment variable
-- Check logs show tunnel URL
-- ngrok requires active account at https://ngrok.com
+### Tunnel not working (ERR_NGROK_3200 or offline)
+- **Ensure NGROK_AUTHTOKEN is set** - Required for any tunnel
+  - `export NGROK_AUTHTOKEN="your_token_from_ngrok"`
+  - Get token at https://ngrok.com (free account)
+- **Wait for tunnel to stabilize** - Tunnels take 3-5 seconds to become fully active
+  - The tunnel URL is created immediately but may not accept traffic initially
+  - Logs show "Waiting for tunnel to stabilize" - this is expected
+- **Check local endpoint is working** - Tunnel won't work if localhost:8000 is down
+  - Verify app is running: `curl http://127.0.0.1:8000/`
+  - If local endpoint fails, tunnel will also fail
+- **Retry the request** - ngrok free tier may have intermittent connectivity
+  - If tunnel URL returns offline error, wait 10-30 seconds and try again
+  - Subsequent requests often succeed as ngrok stabilizes
+- **Check ngrok region (optional)** - High-load regions may be congested
+  - Set `NGROK_REGION=in` or `NGROK_REGION=eu` for different regions
+  - Default region is `us`
+- **Monitor tunnel status** - Check application logs for tunnel creation messages
+  - Look for: `Successfully created tunnel: http://127.0.0.1:8000 -> https://...`
+  - If test request fails but URL is created, tunnel may still work
 
 ### Logs won't load
 - Ensure Docker is running

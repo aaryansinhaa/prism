@@ -380,8 +380,8 @@ class TestTunnelIntegration:
         
         assert "Local Prediction URL" in html
         assert "http://127.0.0.1:8000/predict?model_id=test-model" in html
-        assert "Public Tunnel URL" in html
-        assert "https://test-model.ngrok.io" in html
+        assert "Public Prediction Link" in html
+        assert "https://test-model.ngrok.io/tunnel/test-model" in html
         assert "Share this link" in html
 
 
