@@ -5,12 +5,11 @@ import sys
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from app.main import app
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-
-from app.main import app
 
 
 def _auth_headers(api_key: str = "test-api-key") -> dict[str, str]:
@@ -76,7 +75,6 @@ def test_inference_forwards_to_container(monkeypatch, tmp_path):
 
         async def __aexit__(self, *args):
             pass
-
 
     monkeypatch.setattr("app.routing.inference.httpx.AsyncClient", FakeAsyncClient)
 

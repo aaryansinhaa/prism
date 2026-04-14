@@ -3,15 +3,14 @@ from pathlib import Path
 import sys
 
 import pytest
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from runtime.adapters.base import ModelPredictError
 from runtime.adapters.onnx_adapters import ONNXModel
 from runtime.adapters.scikitlearn_adapters import SklearnModel
 from runtime.model_loaders import detect_model_type
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 def test_detect_model_type_by_extension():
@@ -60,7 +59,7 @@ def test_onnx_predict_reshapes_1d_to_row_vector_for_two_dim_input():
             return [__import__("numpy").array([2])]
 
     fake_session = _FakeSession()
-    model = ONNXModel(session=fake_session)
+    model = ONNXModel(session=fake_session)  # type: ignore
 
     result = model.predict({"X": [6.2, 3.4, 5.4, 2.3]})
 

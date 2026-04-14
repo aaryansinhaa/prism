@@ -178,7 +178,6 @@ def upload_success_response(
     ui_url = f"http://127.0.0.1:8000/predict?model_id={model_id}"
     api_url = f"http://127.0.0.1:{port}/predict"
     public_block = ""
-    qr_section = ""
     if tunnel_url:
         # Tunnel forwards model container port; prediction path is /predict
         tunnel_endpoint = f"{tunnel_url.rstrip('/')}/predict"

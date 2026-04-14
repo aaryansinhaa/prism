@@ -5,12 +5,11 @@ import sys
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from app.main import app
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-
-from app.main import app
 
 
 def test_prune_stale_registry_entries_removes_missing_containers(monkeypatch, tmp_path):

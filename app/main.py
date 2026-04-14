@@ -3,13 +3,12 @@ import os
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
-
-# Load environment variables from .env file
-load_dotenv()
-
 from app.routing import frontend, health, inference, models, predict, registry
 from app.services.health_monitor_service import HealthMonitorService
 from runtime.model_loaders import load_model
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = FastAPI()
 

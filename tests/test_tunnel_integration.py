@@ -8,12 +8,11 @@ import sys
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from app.main import app
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-
-from app.main import app
 
 
 def test_upload_and_run_without_tunnel(monkeypatch, tmp_path):
@@ -104,7 +103,6 @@ def test_upload_and_run_with_tunnel_enabled(monkeypatch, tmp_path):
     async def fake_start_tunnel(local_port, model_id):
         call_count["tunnel"] += 1
         return f"https://testmodel{model_id[:6]}.ngrok.io", None
-
 
     monkeypatch.setattr("app.routing.models.start_tunnel", fake_start_tunnel)
 

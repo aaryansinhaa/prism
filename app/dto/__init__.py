@@ -1,8 +1,16 @@
 """DTO (Data Transfer Object) schemas for PRISM API."""
 
-from typing import Any, Dict
-
 from pydantic import BaseModel, Field
+
+from app.dto.dto import (
+    ContainerLogsDTO,
+    DashboardDTO,
+    DeleteResultDTO,
+    DeploymentResultDTO,
+    HtmlResponseDTO,
+    ModelCardDTO,
+    UploadModelDTO,
+)
 
 
 class UploadResponse(BaseModel):
@@ -37,17 +45,6 @@ class UploadAndRunResponse(UploadResponse):
     registry: ContainerRegistry = Field(..., description="Registry record")
     registry_path: str = Field(..., description="Path to registry file")
 
-
-# Import clean architecture DTOs
-from app.dto.dto import (
-    ContainerLogsDTO,
-    DashboardDTO,
-    DeleteResultDTO,
-    DeploymentResultDTO,
-    HtmlResponseDTO,
-    ModelCardDTO,
-    UploadModelDTO,
-)
 
 __all__ = [
     "UploadResponse",

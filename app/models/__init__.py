@@ -10,6 +10,13 @@ from typing import Any
 
 from fastapi import UploadFile
 
+from app.models.model import (
+    ContainerStatus,
+    ModelMetadata,
+    PredictionRequest,
+    PredictionResult,
+)
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODEL_CONTAINER_TEMPLATE_DIR = REPO_ROOT / "model_container"
 ALLOWED_UPLOAD_SUFFIXES = {".onnx", ".pkl", ".pickle", ".joblib"}
@@ -111,14 +118,6 @@ async def ingest_upload_and_build(file: UploadFile) -> dict[str, Any]:
         "build_output": build_output,
     }
 
-
-# Import domain models for clean architecture
-from app.models.model import (
-    ContainerStatus,
-    ModelMetadata,
-    PredictionRequest,
-    PredictionResult,
-)
 
 __all__ = [
     "ModelMetadata",

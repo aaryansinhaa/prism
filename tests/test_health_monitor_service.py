@@ -3,13 +3,12 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
+from app.models.model import ModelMetadata
+from app.services.health_monitor_service import HealthMonitorService
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-
-from app.models.model import ModelMetadata
-from app.services.health_monitor_service import HealthMonitorService
 
 
 def test_monitor_cycle_restarts_dead_container(monkeypatch):
