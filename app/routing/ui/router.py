@@ -80,45 +80,6 @@ async def dashboard() -> str:
     return base_layout("PRISM - Dashboard", html_content, show_sidebar=True, active_nav="dashboard")
 
 
-@router.get("/tunnel/{model_id}", response_class=HTMLResponse)
-async def tunnel_predict(model_id: str) -> str:
-    """Dedicated endpoint for ngrok tunnel access - shows ONLY the prediction interface.
-    
-    This endpoint is exposed via ngrok tunnel for clients.
-    Clients only see the prediction interface for this specific model.
-    No sidebar, no dashboard, no other models visible.
-    
-    Args:
-        model_id: The specific model to allow predictions for
-    """
-    model_name: str | None = None
-    model_description: str | None = None
-    expected_input_json: str | None = None
-
-    path = registry_path()
-    if path.exists():
-        try:
-            with path.open("r", encoding="utf-8") as file:
-                data: Dict[str, Any] = json.load(file)
-            model_entry = data.get("models", {}).get(model_id, {})
-            if isinstance(model_entry, dict):
-                model_name = model_entry.get("name")
-                model_description = model_entry.get("description")
-                expected_input_json = model_entry.get("expected_input_json")
-        except (OSError, json.JSONDecodeError):
-            pass
-
-    return base_layout(
-        "PRISM - Make Predictions",
-        predict_page(
-            model_name=model_name,
-            model_description=model_description,
-            expected_input_json=expected_input_json,
-        ),
-        show_sidebar=False,  # Never show sidebar for tunnel access
-    )
-
-
 @router.get("/upload-model", response_class=HTMLResponse)
 async def upload_model_ui() -> str:
     """Render upload model page."""
@@ -261,13 +222,11 @@ async def upload_and_run_ui(
         qr_data_uri = None
         if enable_tunnel:
             try:
-                # Tunnel to PRISM server (port 8000), not the model container
-                tunnel_url, _ = await start_tunnel(8000, model_id)
+                # Tunnel the model container's dedicated prediction port
+                tunnel_url, _ = await start_tunnel(host_port, model_id)
                 if tunnel_url:
-                    # The tunnel endpoint is /tunnel/{model_id}
-                    # This shows ONLY the prediction interface for this specific model
-                    tunnel_endpoint = f"{tunnel_url}/tunnel/{model_id}"
-                    qr_data_uri = generate_qr_data_uri(tunnel_endpoint)
+                    tunnel_prediction_url = f"{tunnel_url.rstrip('/')}/predict"
+                    qr_data_uri = generate_qr_data_uri(tunnel_prediction_url)
             except RuntimeError as exc:
                 tunnel_warning = str(exc)
                 print(f"Warning: Failed to start tunnel for {model_id}: {exc}")
@@ -329,7 +288,7 @@ async def predict_ui(model_id: str | None = None) -> str:
             model_description=model_description,
             expected_input_json=expected_input_json,
         ),
-        show_sidebar=True,
+        show_sidebar=False,
     )
 
 

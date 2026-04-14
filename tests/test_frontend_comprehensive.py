@@ -366,7 +366,7 @@ class TestTunnelIntegration:
         
         assert "Local Prediction URL" in html
         assert "http://127.0.0.1:8000/predict?model_id=test-model" in html
-        assert "Public Tunnel URL" not in html
+        assert "Public Prediction API URL" not in html
     
     def test_success_response_with_tunnel(self):
         """IT: Success response displays tunnel URL when provided."""
@@ -380,9 +380,10 @@ class TestTunnelIntegration:
         
         assert "Local Prediction URL" in html
         assert "http://127.0.0.1:8000/predict?model_id=test-model" in html
-        assert "Public Prediction Link" in html
-        assert "https://test-model.ngrok.io/tunnel/test-model" in html
-        assert "Share this link" in html
+        assert "http://127.0.0.1:8001/predict" in html
+        assert "Public Prediction API URL" in html
+        assert "https://test-model.ngrok.io/predict" in html
+        assert "direct prediction requests" in html
 
 
 class TestErrorHandling:
@@ -406,7 +407,7 @@ class TestErrorHandling:
         assert "alert-error" in html
         assert "Test error message" in html
         assert "Try Again" in html
-        assert "Upload New Model" in html
+        assert "Upload New Model" not in html
 
 
 # ============================================================================

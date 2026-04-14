@@ -34,6 +34,8 @@ def test_predict_ui_loads():
     assert "PRISM" in response.text
     assert "🔮 Make Predictions" in response.text or "Send input data" in response.text
     assert 'hx-post="/predict-result"' in response.text  # HTMX form
+    assert "📊 Dashboard" not in response.text
+    assert "📤 Upload Model" not in response.text
 
 
 def test_predict_ui_has_model_id_param():

@@ -174,14 +174,12 @@ def upload_success_response(
   qr_data_uri: str | None = None,
 ) -> str:
     ui_url = f"http://127.0.0.1:8000/predict?model_id={model_id}"
-    api_url = f"http://127.0.0.1:8000/models/{model_id}/predict"
+    api_url = f"http://127.0.0.1:{port}/predict"
     public_block = ""
     qr_section = ""
     if tunnel_url:
-        # The tunnel endpoint is specifically for this model only
-        # Clients can ONLY access: https://xxx.ngrok-free.dev/tunnel/{model_id}
-        # They cannot access any other model or the dashboard
-        tunnel_endpoint = f"{tunnel_url}/tunnel/{model_id}"
+        # Tunnel forwards model container port; prediction path is /predict
+        tunnel_endpoint = f"{tunnel_url.rstrip('/')}/predict"
         qr_for_tunnel = ""
         if qr_data_uri:
             qr_for_tunnel = f"""
@@ -191,12 +189,12 @@ def upload_success_response(
 """
         public_block = f"""
     <div>
-      <p class=\"text-sm font-medium text-black mb-2\">Public Prediction Link 🔮</p>
+      <p class=\"text-sm font-medium text-black mb-2\">Public Prediction API URL 🌐</p>
       <div class=\"flex gap-2 items-center\">
         <code class=\"flex-1 bg-white p-3 rounded border border-black text-sm font-mono text-black overflow-auto\">{tunnel_endpoint}</code>
         <button type=\"button\" class=\"btn-secondary whitespace-nowrap\" onclick=\"copyToClipboard('{tunnel_endpoint}', this)\">Copy</button>
       </div>
-      <p class=\"text-xs text-gray-600 mt-2\">Share this link with clients. They can ONLY use this model for predictions.</p>
+      <p class=\"text-xs text-gray-600 mt-2\">Share this URL for direct prediction requests.</p>
       {qr_for_tunnel}
     </div>
 """
@@ -373,7 +371,7 @@ def predict_page(
     document.getElementById('modelIdInput').value = modelId;
     document.getElementById('modelIdDisplay').textContent = 'Model: ' + modelId;
   } else {
-    document.getElementById('modelIdDisplay').innerHTML = '<span class=\"text-red-600\">Model ID not provided. <a href=\"/\" class=\"underline\">Go back to upload.</a></span>';
+    document.getElementById('modelIdDisplay').innerHTML = '<span class=\"text-red-600\">Model ID not provided.</span>';
   }
 </script>"""
 
@@ -385,17 +383,15 @@ def prediction_result_component(prediction: Dict[str, Any], model_id: str) -> st
   <p class=\"text-black text-xs mb-2 font-medium\">Response (JSON):</p>
   <pre class=\"text-black font-mono text-sm overflow-auto max-h-48 bg-white p-3 border border-black rounded-md\">{pretty}</pre>
 </div>
-<div class=\"mt-6 flex gap-3\">
-  <button hx-get=\"/predict?model_id={model_id}\" hx-target=\"#app-content\" hx-swap=\"innerHTML\" class=\"btn-secondary flex-1\">Make Another Prediction</button>
-  <a href=\"/\" class=\"btn-secondary flex-1 text-center\">Upload New Model</a>
+<div class=\"mt-6\">
+  <button hx-get=\"/predict?model_id={model_id}\" hx-target=\"#app-content\" hx-swap=\"innerHTML\" class=\"btn-secondary w-full\">Make Another Prediction</button>
 </div>"""
 
 
 def prediction_error_component(error: str, model_id: str) -> str:
     return f"""<div class=\"alert-error mb-4\">✗ Prediction failed: {error}</div>
-<div class=\"mt-6 flex gap-3\">
-  <button hx-get=\"/predict?model_id={model_id}\" hx-target=\"#app-content\" hx-swap=\"innerHTML\" class=\"btn-secondary flex-1\">Try Again</button>
-  <a href=\"/\" class=\"btn-secondary flex-1 text-center\">Upload New Model</a>
+<div class=\"mt-6\">
+  <button hx-get=\"/predict?model_id={model_id}\" hx-target=\"#app-content\" hx-swap=\"innerHTML\" class=\"btn-secondary w-full\">Try Again</button>
 </div>"""
 
 

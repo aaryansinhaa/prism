@@ -197,8 +197,7 @@ class DashboardService:
             status = get_container_status(metadata.container_id)
             tunnel_prediction_url = None
             if metadata.tunnel_url:
-                # Tunnel endpoint allows ONLY access to this specific model's prediction interface
-                tunnel_prediction_url = f"{metadata.tunnel_url}/tunnel/{model_id}"
+                tunnel_prediction_url = f"{metadata.tunnel_url.rstrip('/')}/predict"
             card = ModelCardDTO(
                 model_id=model_id,
                 model_name=metadata.name or model_id,
@@ -210,7 +209,7 @@ class DashboardService:
                 status_class=status.badge_class,
                 indicator_class=status.indicator_class,
                 predict_url=build_prediction_url(model_id),
-                api_url=build_api_url(model_id),
+                api_url=build_api_url(model_id, base_url=f"http://127.0.0.1:{metadata.port}"),
                 tunnel_url=metadata.tunnel_url,
                 tunnel_prediction_url=tunnel_prediction_url,
             )

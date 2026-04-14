@@ -12,12 +12,29 @@ from typing import Any
 
 from fastapi import UploadFile
 
+DOCKER_DAEMON_HINT = (
+    "Docker is not available or the daemon is not running. "
+    "Start Docker Desktop / the Docker service and make sure the socket exists at /var/run/docker.sock."
+)
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODEL_CONTAINER_TEMPLATE_DIR = REPO_ROOT / "model_container"
 ALLOWED_UPLOAD_SUFFIXES = {".onnx", ".pkl", ".pickle", ".joblib"}
 DOCKER_BUILD_TIMEOUT_SECONDS = int(os.environ.get("DOCKER_BUILD_TIMEOUT_SECONDS", "300"))
 DOCKER_RUN_TIMEOUT_SECONDS = int(os.environ.get("DOCKER_RUN_TIMEOUT_SECONDS", "60"))
+
+
+def _normalize_docker_error(action: str, exc: subprocess.CalledProcessError) -> RuntimeError:
+    stderr = (exc.stderr or "").strip()
+    stdout = (exc.stdout or "").strip()
+    details = stderr or stdout or f"docker {action} failed"
+    lower_details = details.lower()
+
+    if "failed to connect to the docker api" in lower_details or "docker.sock" in lower_details or "cannot connect to the docker daemon" in lower_details:
+        details = f"{details}\n\n{DOCKER_DAEMON_HINT}"
+
+    return RuntimeError(details)
 
 
 def upload_root() -> Path:
@@ -81,10 +98,7 @@ def build_model_image(model_id: str, model_dir: Path) -> tuple[str, str]:
             f"docker build timed out after {DOCKER_BUILD_TIMEOUT_SECONDS}s"
         ) from exc
     except subprocess.CalledProcessError as exc:
-        stderr = (exc.stderr or "").strip()
-        stdout = (exc.stdout or "").strip()
-        details = stderr or stdout or "docker build failed"
-        raise RuntimeError(details) from exc
+        raise _normalize_docker_error("build", exc) from exc
 
     return image_tag, (result.stdout or "").strip()
 
@@ -127,10 +141,7 @@ def run_model_container(
             f"docker run timed out after {DOCKER_RUN_TIMEOUT_SECONDS}s"
         ) from exc
     except subprocess.CalledProcessError as exc:
-        stderr = (exc.stderr or "").strip()
-        stdout = (exc.stdout or "").strip()
-        details = stderr or stdout or "docker run failed"
-        raise RuntimeError(details) from exc
+        raise _normalize_docker_error("run", exc) from exc
 
     container_id = (result.stdout or "").strip()
     return container_name, resolved_port, container_id

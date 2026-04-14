@@ -127,6 +127,33 @@ def test_upload_and_run_returns_500_on_run_failure(monkeypatch, tmp_path):
     assert "docker run boom" in response.json()["detail"]
 
 
+def test_upload_and_run_reports_missing_docker_daemon(monkeypatch, tmp_path):
+    monkeypatch.setenv("MODEL_UPLOAD_ROOT", str(tmp_path))
+
+    def fake_run(command, **kwargs):
+        if command[:3] == ["docker", "build", "-t"]:
+            raise subprocess.CalledProcessError(
+                1,
+                command,
+                output="",
+                stderr="failed to connect to the docker API at unix:///var/run/docker.sock; check if the path is correct and if the daemon is running: dial unix /var/run/docker.sock: connect: no such file or directory",
+            )
+        raise AssertionError(f"Unexpected command: {command}")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/models/upload",
+            files={"file": ("uploaded_model.onnx", io.BytesIO(b"model-bytes"), "application/octet-stream")},
+        )
+
+    assert response.status_code == 500
+    detail = response.json()["detail"]
+    assert "Docker is not available or the daemon is not running" in detail
+    assert "/var/run/docker.sock" in detail
+
+
 def test_upload_and_run_persists_metadata(monkeypatch, tmp_path):
     monkeypatch.setenv("MODEL_UPLOAD_ROOT", str(tmp_path))
     registry_file = tmp_path / "containers.json"
