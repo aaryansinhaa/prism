@@ -9,6 +9,7 @@ from typing import Optional
 @dataclass
 class ModelMetadata:
     """Core model metadata entity."""
+
     model_id: str
     container_id: str
     port: int
@@ -38,6 +39,7 @@ class ModelMetadata:
 @dataclass
 class ContainerStatus:
     """Container runtime status."""
+
     is_running: bool
     status_text: str
 
@@ -55,14 +57,18 @@ class ContainerStatus:
 @dataclass
 class PredictionRequest:
     """Request for model prediction."""
+
     model_id: str
     input_data: dict
 
     @classmethod
-    def from_json(cls, model_id: str, json_str: str) -> tuple[bool, PredictionRequest | str]:
+    def from_json(
+        cls, model_id: str, json_str: str
+    ) -> tuple[bool, PredictionRequest | str]:
         """Parse JSON prediction request. Returns (success, result)."""
         try:
             import json
+
             payload = json.loads(json_str)
             return True, cls(model_id=model_id, input_data=payload)
         except Exception as e:
@@ -72,6 +78,7 @@ class PredictionRequest:
 @dataclass
 class PredictionResult:
     """Response from model prediction."""
+
     model_id: str
     output: dict
     error: Optional[str] = None

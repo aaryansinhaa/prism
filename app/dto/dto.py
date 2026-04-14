@@ -9,6 +9,7 @@ from typing import Optional
 @dataclass
 class UploadModelDTO:
     """DTO for model upload request."""
+
     filename: str
     name: Optional[str] = None
     description: Optional[str] = None
@@ -19,6 +20,7 @@ class UploadModelDTO:
 @dataclass
 class ModelCardDTO:
     """DTO for rendering a model card on dashboard."""
+
     model_id: str
     model_name: str
     description: Optional[str]
@@ -37,6 +39,7 @@ class ModelCardDTO:
 @dataclass
 class DashboardDTO:
     """DTO for dashboard page data."""
+
     model_cards: list[ModelCardDTO]
     has_models: bool
 
@@ -49,6 +52,7 @@ class DashboardDTO:
 @dataclass
 class DeploymentResultDTO:
     """DTO for model deployment result."""
+
     model_id: str
     container_id: str
     port: int
@@ -61,6 +65,7 @@ class DeploymentResultDTO:
 @dataclass
 class ContainerLogsDTO:
     """DTO for container logs response."""
+
     container_id: str
     logs: str
     error: Optional[str] = None
@@ -74,6 +79,7 @@ class ContainerLogsDTO:
 @dataclass
 class DeleteResultDTO:
     """DTO for deletion result."""
+
     success: bool
     message: str
     deleted_count: int = 1
@@ -82,5 +88,6 @@ class DeleteResultDTO:
 @dataclass
 class HtmlResponseDTO:
     """Generic HTML response DTO."""
+
     html_content: str
     status_code: int = 200

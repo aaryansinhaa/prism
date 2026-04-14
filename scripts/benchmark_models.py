@@ -54,7 +54,9 @@ def benchmark_sklearn(model_path: Path, iterations: int) -> Dict[str, Any]:
     estimator.predict(sample)  # warmup
     total, avg, timings = _timeit(lambda: estimator.predict(sample), iterations)
 
-    p95 = statistics.quantiles(timings, n=20)[-1] if len(timings) >= 20 else max(timings)
+    p95 = (
+        statistics.quantiles(timings, n=20)[-1] if len(timings) >= 20 else max(timings)
+    )
 
     return {
         "model": model_path.name,
@@ -67,7 +69,9 @@ def benchmark_sklearn(model_path: Path, iterations: int) -> Dict[str, Any]:
 
 
 def benchmark_onnx(model_path: Path, iterations: int) -> Dict[str, Any]:
-    session = ort.InferenceSession(model_path.as_posix(), providers=["CPUExecutionProvider"])
+    session = ort.InferenceSession(
+        model_path.as_posix(), providers=["CPUExecutionProvider"]
+    )
     input_name = session.get_inputs()[0].name
     feature_count = _infer_onnx_feature_count(session, fallback=1)
     sample = np.random.rand(1, feature_count).astype(np.float32)
@@ -78,7 +82,9 @@ def benchmark_onnx(model_path: Path, iterations: int) -> Dict[str, Any]:
     run()
     total, avg, timings = _timeit(run, iterations)
 
-    p95 = statistics.quantiles(timings, n=20)[-1] if len(timings) >= 20 else max(timings)
+    p95 = (
+        statistics.quantiles(timings, n=20)[-1] if len(timings) >= 20 else max(timings)
+    )
 
     return {
         "model": model_path.name,
@@ -92,7 +98,12 @@ def benchmark_onnx(model_path: Path, iterations: int) -> Dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--iterations", type=int, default=1000, help="Number of inference iterations per model")
+    parser.add_argument(
+        "--iterations",
+        type=int,
+        default=1000,
+        help="Number of inference iterations per model",
+    )
     args = parser.parse_args()
 
     sklearn_path = MODEL_ROOT / "linear_regression.pkl"

@@ -21,17 +21,25 @@ DOCKER_DAEMON_HINT = (
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODEL_CONTAINER_TEMPLATE_DIR = REPO_ROOT / "model_container"
 ALLOWED_UPLOAD_SUFFIXES = {".onnx", ".pkl", ".pickle", ".joblib"}
-DOCKER_BUILD_TIMEOUT_SECONDS = int(os.environ.get("DOCKER_BUILD_TIMEOUT_SECONDS", "300"))
+DOCKER_BUILD_TIMEOUT_SECONDS = int(
+    os.environ.get("DOCKER_BUILD_TIMEOUT_SECONDS", "300")
+)
 DOCKER_RUN_TIMEOUT_SECONDS = int(os.environ.get("DOCKER_RUN_TIMEOUT_SECONDS", "60"))
 
 
-def _normalize_docker_error(action: str, exc: subprocess.CalledProcessError) -> RuntimeError:
+def _normalize_docker_error(
+    action: str, exc: subprocess.CalledProcessError
+) -> RuntimeError:
     stderr = (exc.stderr or "").strip()
     stdout = (exc.stdout or "").strip()
     details = stderr or stdout or f"docker {action} failed"
     lower_details = details.lower()
 
-    if "failed to connect to the docker api" in lower_details or "docker.sock" in lower_details or "cannot connect to the docker daemon" in lower_details:
+    if (
+        "failed to connect to the docker api" in lower_details
+        or "docker.sock" in lower_details
+        or "cannot connect to the docker daemon" in lower_details
+    ):
         details = f"{details}\n\n{DOCKER_DAEMON_HINT}"
 
     return RuntimeError(details)
@@ -73,7 +81,7 @@ def prepare_model_build_context(model_file_path: Path, model_dir: Path) -> Path:
         f"ENV MODEL_PATH=/models/{model_file_path.name}\n"
         "ENV PORT=8000\n"
         "EXPOSE 8000\n"
-        "ENTRYPOINT [\"/app/entrypoint.sh\"]\n"
+        'ENTRYPOINT ["/app/entrypoint.sh"]\n'
     )
     dockerfile_path.write_text(dockerfile_contents, encoding="utf-8")
     return dockerfile_path

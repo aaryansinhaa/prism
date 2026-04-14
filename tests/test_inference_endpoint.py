@@ -77,7 +77,6 @@ def test_inference_forwards_to_container(monkeypatch, tmp_path):
         async def __aexit__(self, *args):
             pass
 
-    import httpx
 
     monkeypatch.setattr("app.routing.inference.httpx.AsyncClient", FakeAsyncClient)
 
@@ -230,7 +229,9 @@ def test_inference_rate_limit(monkeypatch, tmp_path):
     assert "rate limit" in third.json()["detail"].lower()
 
 
-def test_inference_rejects_payload_not_matching_expected_contract(monkeypatch, tmp_path):
+def test_inference_rejects_payload_not_matching_expected_contract(
+    monkeypatch, tmp_path
+):
     """Test contract validation rejects payloads that violate expected input schema."""
     model_id = "contract_model"
     api_key = "contract-key"

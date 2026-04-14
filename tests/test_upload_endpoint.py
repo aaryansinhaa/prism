@@ -31,7 +31,13 @@ def test_upload_builds_model_image(monkeypatch, tmp_path):
     with TestClient(app) as client:
         response = client.post(
             "/models/upload",
-            files={"file": ("uploaded_model.onnx", io.BytesIO(b"model-bytes"), "application/octet-stream")},
+            files={
+                "file": (
+                    "uploaded_model.onnx",
+                    io.BytesIO(b"model-bytes"),
+                    "application/octet-stream",
+                )
+            },
         )
 
     assert response.status_code == 200, response.text
@@ -75,7 +81,9 @@ def test_upload_and_run_starts_container(monkeypatch, tmp_path):
         if command[:3] == ["docker", "run", "-d"]:
             assert "--name" in command
             assert "-p" in command
-            return subprocess.CompletedProcess(command, 0, stdout="container123", stderr="")
+            return subprocess.CompletedProcess(
+                command, 0, stdout="container123", stderr=""
+            )
         raise AssertionError(f"Unexpected command: {command}")
 
     monkeypatch.setattr("subprocess.run", fake_run)
@@ -83,7 +91,13 @@ def test_upload_and_run_starts_container(monkeypatch, tmp_path):
     with TestClient(app) as client:
         response = client.post(
             "/models/upload-and-run",
-            files={"file": ("uploaded_model.onnx", io.BytesIO(b"model-bytes"), "application/octet-stream")},
+            files={
+                "file": (
+                    "uploaded_model.onnx",
+                    io.BytesIO(b"model-bytes"),
+                    "application/octet-stream",
+                )
+            },
         )
 
     assert response.status_code == 200, response.text
@@ -101,7 +115,9 @@ def test_upload_and_run_starts_container(monkeypatch, tmp_path):
         registry_data = json.load(file)
 
     assert payload["model_id"] in registry_data["models"]
-    assert registry_data["models"][payload["model_id"]]["container_id"] == "container123"
+    assert (
+        registry_data["models"][payload["model_id"]]["container_id"] == "container123"
+    )
     assert registry_data["models"][payload["model_id"]]["port"] == payload["host_port"]
 
 
@@ -112,7 +128,9 @@ def test_upload_and_run_returns_500_on_run_failure(monkeypatch, tmp_path):
         if command[:3] == ["docker", "build", "-t"]:
             return subprocess.CompletedProcess(command, 0, stdout="built", stderr="")
         if command[:3] == ["docker", "run", "-d"]:
-            raise subprocess.CalledProcessError(1, command, output="", stderr="docker run boom")
+            raise subprocess.CalledProcessError(
+                1, command, output="", stderr="docker run boom"
+            )
         raise AssertionError(f"Unexpected command: {command}")
 
     monkeypatch.setattr("subprocess.run", fake_run)
@@ -120,7 +138,13 @@ def test_upload_and_run_returns_500_on_run_failure(monkeypatch, tmp_path):
     with TestClient(app) as client:
         response = client.post(
             "/models/upload-and-run",
-            files={"file": ("uploaded_model.onnx", io.BytesIO(b"model-bytes"), "application/octet-stream")},
+            files={
+                "file": (
+                    "uploaded_model.onnx",
+                    io.BytesIO(b"model-bytes"),
+                    "application/octet-stream",
+                )
+            },
         )
 
     assert response.status_code == 500
@@ -145,7 +169,13 @@ def test_upload_and_run_reports_missing_docker_daemon(monkeypatch, tmp_path):
     with TestClient(app) as client:
         response = client.post(
             "/models/upload",
-            files={"file": ("uploaded_model.onnx", io.BytesIO(b"model-bytes"), "application/octet-stream")},
+            files={
+                "file": (
+                    "uploaded_model.onnx",
+                    io.BytesIO(b"model-bytes"),
+                    "application/octet-stream",
+                )
+            },
         )
 
     assert response.status_code == 500
@@ -163,7 +193,9 @@ def test_upload_and_run_persists_metadata(monkeypatch, tmp_path):
         if command[:3] == ["docker", "build", "-t"]:
             return subprocess.CompletedProcess(command, 0, stdout="built", stderr="")
         if command[:3] == ["docker", "run", "-d"]:
-            return subprocess.CompletedProcess(command, 0, stdout="container-metadata", stderr="")
+            return subprocess.CompletedProcess(
+                command, 0, stdout="container-metadata", stderr=""
+            )
         raise AssertionError(f"Unexpected command: {command}")
 
     monkeypatch.setattr("subprocess.run", fake_run)
@@ -176,7 +208,13 @@ def test_upload_and_run_persists_metadata(monkeypatch, tmp_path):
                 "model_description": "Predicts customer churn risk.",
                 "expected_input_json": '{"features": [1.0, 2.0, 3.0]}',
             },
-            files={"file": ("uploaded_model.onnx", io.BytesIO(b"model-bytes"), "application/octet-stream")},
+            files={
+                "file": (
+                    "uploaded_model.onnx",
+                    io.BytesIO(b"model-bytes"),
+                    "application/octet-stream",
+                )
+            },
         )
 
     assert response.status_code == 200, response.text
@@ -199,7 +237,13 @@ def test_upload_and_run_rejects_invalid_expected_input_json(monkeypatch, tmp_pat
         response = client.post(
             "/models/upload-and-run",
             data={"expected_input_json": "{invalid json"},
-            files={"file": ("uploaded_model.onnx", io.BytesIO(b"model-bytes"), "application/octet-stream")},
+            files={
+                "file": (
+                    "uploaded_model.onnx",
+                    io.BytesIO(b"model-bytes"),
+                    "application/octet-stream",
+                )
+            },
         )
 
     assert response.status_code == 400

@@ -8,49 +8,49 @@ from typing import Any, Dict
 
 
 class ModelAdapterError(RuntimeError):
-	"""Base exception for adapter-specific failures."""
+    """Base exception for adapter-specific failures."""
 
 
 class ModelLoadError(ModelAdapterError):
-	"""Raised when a model artifact cannot be loaded."""
+    """Raised when a model artifact cannot be loaded."""
 
 
 class ModelPredictError(ModelAdapterError):
-	"""Raised when prediction fails for a loaded model."""
+    """Raised when prediction fails for a loaded model."""
 
 
 class BaseModel(ABC):
-	"""All model adapters must implement this contract."""
+    """All model adapters must implement this contract."""
 
-	def __init__(self, metadata: Dict[str, Any] | None = None) -> None:
-		self.metadata: Dict[str, Any] = metadata or {}
+    def __init__(self, metadata: Dict[str, Any] | None = None) -> None:
+        self.metadata: Dict[str, Any] = metadata or {}
 
-	@classmethod
-	@abstractmethod
-	def from_path(
-		cls,
-		model_path: str | Path,
-		**kwargs: Any,
-	) -> "BaseModel":
-		"""Create a model adapter from an on-disk artifact."""
+    @classmethod
+    @abstractmethod
+    def from_path(
+        cls,
+        model_path: str | Path,
+        **kwargs: Any,
+    ) -> "BaseModel":
+        """Create a model adapter from an on-disk artifact."""
 
-	@abstractmethod
-	def predict(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-		"""Run inference and return a JSON-serializable dict."""
+    @abstractmethod
+    def predict(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Run inference and return a JSON-serializable dict."""
 
-	def validate_input(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-		"""Validate and normalize an inference payload.
+    def validate_input(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate and normalize an inference payload.
 
-		Adapters can override this to enforce framework-specific schemas.
-		The default implementation accepts the payload unchanged.
-		"""
+        Adapters can override this to enforce framework-specific schemas.
+        The default implementation accepts the payload unchanged.
+        """
 
-		return input_data
+        return input_data
 
 
 __all__ = [
-	"BaseModel",
-	"ModelAdapterError",
-	"ModelLoadError",
-	"ModelPredictError",
+    "BaseModel",
+    "ModelAdapterError",
+    "ModelLoadError",
+    "ModelPredictError",
 ]

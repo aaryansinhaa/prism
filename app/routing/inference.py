@@ -22,6 +22,7 @@ def _load_registry() -> Dict[str, Any]:
 
     try:
         import json
+
         with path.open("r", encoding="utf-8") as file:
             data = json.load(file)
         return data if isinstance(data, dict) else {"models": {}}
@@ -36,7 +37,7 @@ async def predict_model(
     payload: Dict[str, Any] = Body(...),
 ) -> Dict[str, Any]:
     """Forward prediction request to deployed model container.
-    
+
     Looks up the model's container port in the registry and forwards
     the request to the running container's /predict endpoint.
     """

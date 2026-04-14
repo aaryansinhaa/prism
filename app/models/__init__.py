@@ -54,7 +54,7 @@ def prepare_model_build_context(model_file_path: Path, model_dir: Path) -> Path:
         f"ENV MODEL_PATH=/models/{model_file_path.name}\n"
         "ENV PORT=8000\n"
         "EXPOSE 8000\n"
-        "ENTRYPOINT [\"/app/entrypoint.sh\"]\n"
+        'ENTRYPOINT ["/app/entrypoint.sh"]\n'
     )
     dockerfile_path.write_text(dockerfile_contents, encoding="utf-8")
     return dockerfile_path

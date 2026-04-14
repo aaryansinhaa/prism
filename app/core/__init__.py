@@ -12,17 +12,25 @@ DOCKER_DAEMON_HINT = (
     "Start Docker Desktop / the Docker service and make sure the socket exists at /var/run/docker.sock."
 )
 
-DOCKER_BUILD_TIMEOUT_SECONDS = int(os.environ.get("DOCKER_BUILD_TIMEOUT_SECONDS", "300"))
+DOCKER_BUILD_TIMEOUT_SECONDS = int(
+    os.environ.get("DOCKER_BUILD_TIMEOUT_SECONDS", "300")
+)
 DOCKER_RUN_TIMEOUT_SECONDS = int(os.environ.get("DOCKER_RUN_TIMEOUT_SECONDS", "60"))
 
 
-def _normalize_docker_error(action: str, exc: subprocess.CalledProcessError) -> RuntimeError:
+def _normalize_docker_error(
+    action: str, exc: subprocess.CalledProcessError
+) -> RuntimeError:
     stderr = (exc.stderr or "").strip()
     stdout = (exc.stdout or "").strip()
     details = stderr or stdout or f"docker {action} failed"
     lower_details = details.lower()
 
-    if "failed to connect to the docker api" in lower_details or "docker.sock" in lower_details or "cannot connect to the docker daemon" in lower_details:
+    if (
+        "failed to connect to the docker api" in lower_details
+        or "docker.sock" in lower_details
+        or "cannot connect to the docker daemon" in lower_details
+    ):
         details = f"{details}\n\n{DOCKER_DAEMON_HINT}"
 
     return RuntimeError(details)

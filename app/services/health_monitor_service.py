@@ -56,7 +56,9 @@ class HealthMonitorService:
 
     @staticmethod
     async def run_monitor_cycle() -> MonitorCycleResult:
-        removed_model_ids = await asyncio.to_thread(ModelRegistryService.prune_stale_models)
+        removed_model_ids = await asyncio.to_thread(
+            ModelRegistryService.prune_stale_models
+        )
         if removed_model_ids:
             print(
                 "Health monitor: pruned stale registry entries: "
@@ -67,14 +69,20 @@ class HealthMonitorService:
         restarted = 0
 
         for metadata in models.values():
-            status = await asyncio.to_thread(get_container_status, metadata.container_id)
+            status = await asyncio.to_thread(
+                get_container_status, metadata.container_id
+            )
             if status.is_running:
                 continue
 
-            success, message = await asyncio.to_thread(restart_container, metadata.container_id)
+            success, message = await asyncio.to_thread(
+                restart_container, metadata.container_id
+            )
             if success:
                 restarted += 1
-                print(f"Health monitor: restarted container {metadata.container_id[:12]}")
+                print(
+                    f"Health monitor: restarted container {metadata.container_id[:12]}"
+                )
             else:
                 print(
                     "Health monitor: failed to restart "

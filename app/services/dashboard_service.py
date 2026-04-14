@@ -4,17 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import json
-from pathlib import Path
-from typing import Optional
 
 from app.dto.dto import (
     ContainerLogsDTO,
     DashboardDTO,
     DeleteResultDTO,
-    DeploymentResultDTO,
     ModelCardDTO,
 )
-from app.models.model import ContainerStatus, ModelMetadata
+from app.models.model import ModelMetadata
 from app.registry.container_registry import registry_path
 from app.utils.docker_utils import (
     build_api_url,
@@ -132,9 +129,7 @@ class ContainerService:
     """Service for Docker container operations."""
 
     @staticmethod
-    async def delete_model_async(
-        model_id: str, container_id: str
-    ) -> DeleteResultDTO:
+    async def delete_model_async(model_id: str, container_id: str) -> DeleteResultDTO:
         """Delete a model and its container."""
         # Delete container
         success, message = await asyncio.to_thread(delete_container, container_id)
@@ -209,7 +204,9 @@ class DashboardService:
                 status_class=status.badge_class,
                 indicator_class=status.indicator_class,
                 predict_url=build_prediction_url(model_id),
-                api_url=build_api_url(model_id, base_url=f"http://127.0.0.1:{metadata.port}"),
+                api_url=build_api_url(
+                    model_id, base_url=f"http://127.0.0.1:{metadata.port}"
+                ),
                 tunnel_url=metadata.tunnel_url,
                 tunnel_prediction_url=tunnel_prediction_url,
             )
@@ -225,9 +222,7 @@ class ContainerLogsService:
     """Service for retrieving container logs."""
 
     @staticmethod
-    def get_container_logs_dto(
-        container_id: str, lines: int = 50
-    ) -> ContainerLogsDTO:
+    def get_container_logs_dto(container_id: str, lines: int = 50) -> ContainerLogsDTO:
         """Get container logs as DTO."""
         logs = get_container_logs(container_id, lines)
         return ContainerLogsDTO(container_id=container_id, logs=logs)

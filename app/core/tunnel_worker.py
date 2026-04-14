@@ -73,7 +73,10 @@ def _disconnect_existing_listeners() -> int:
             disconnected += 1
             print(f"[TunnelWorker] Disconnected existing listener: {url}", flush=True)
         except Exception as exc:
-            print(f"[TunnelWorker] Failed to disconnect listener {existing}: {exc}", flush=True)
+            print(
+                f"[TunnelWorker] Failed to disconnect listener {existing}: {exc}",
+                flush=True,
+            )
 
     return disconnected
 
@@ -83,7 +86,10 @@ def _connect_listener(addr: str, custom_domain: str | None):
         print(f"[TunnelWorker] Using custom domain: {custom_domain}", flush=True)
         return ngrok.connect(addr, domain=custom_domain)  # type: ignore[attr-defined]
 
-    print("[TunnelWorker] No custom domain configured, ngrok will auto-generate", flush=True)
+    print(
+        "[TunnelWorker] No custom domain configured, ngrok will auto-generate",
+        flush=True,
+    )
     return ngrok.connect(addr)  # type: ignore[attr-defined]
 
 

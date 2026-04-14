@@ -58,7 +58,9 @@ def _load_model(model_path: Path) -> tuple[Any, str]:
     if model_type == "onnx":
         import onnxruntime as ort
 
-        session = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
+        session = ort.InferenceSession(
+            str(model_path), providers=["CPUExecutionProvider"]
+        )
         return session, model_type
 
     if model_path.suffix.lower() == ".joblib":
@@ -140,6 +142,8 @@ def predict(payload: PredictRequest) -> dict[str, Any]:
         if model_type == "sklearn":
             return _predict_sklearn(model, features)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Prediction failed: {exc}") from exc
+        raise HTTPException(
+            status_code=400, detail=f"Prediction failed: {exc}"
+        ) from exc
 
     raise HTTPException(status_code=500, detail="Unknown model type")

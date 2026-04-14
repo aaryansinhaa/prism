@@ -17,7 +17,6 @@ import time
 from pathlib import Path
 from typing import Any, Dict
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_STATE_DIR = Path(tempfile.gettempdir()) / "prism" / "tunnels"
 START_TIMEOUT_SECONDS = int(os.environ.get("PRISM_TUNNEL_START_TIMEOUT", "30"))
@@ -31,7 +30,9 @@ def _state_dir() -> Path:
 
 
 def _safe_model_id(model_id: str) -> str:
-    return "".join(ch if ch.isalnum() or ch in {"-", "_", "."} else "_" for ch in model_id)
+    return "".join(
+        ch if ch.isalnum() or ch in {"-", "_", "."} else "_" for ch in model_id
+    )
 
 
 def _state_path(model_id: str) -> Path:
@@ -92,8 +93,15 @@ async def start_tunnel(local_port: int, model_id: str) -> tuple[str, None]:
         existing_pid = int(existing.get("pid", 0) or 0)
         existing_port = int(existing.get("local_port", 0) or 0)
         existing_url = existing.get("public_url")
-        if existing_pid and _process_alive(existing_pid) and existing_port == local_port and isinstance(existing_url, str):
-            print(f"[Tunnel] Reusing existing detached tunnel for {model_id}: {existing_url}")
+        if (
+            existing_pid
+            and _process_alive(existing_pid)
+            and existing_port == local_port
+            and isinstance(existing_url, str)
+        ):
+            print(
+                f"[Tunnel] Reusing existing detached tunnel for {model_id}: {existing_url}"
+            )
             return existing_url, None
 
         _cleanup_state(model_id)
@@ -130,7 +138,9 @@ async def start_tunnel(local_port: int, model_id: str) -> tuple[str, None]:
             public_url = state.get("public_url")
             if isinstance(public_url, str) and public_url:
                 print(f"[Tunnel] Detached worker reported public_url: {public_url}")
-                print(f"✓ [Tunnel] Successfully created tunnel: http://127.0.0.1:{local_port} -> {public_url}")
+                print(
+                    f"✓ [Tunnel] Successfully created tunnel: http://127.0.0.1:{local_port} -> {public_url}"
+                )
                 return public_url, None
 
         if process.poll() is not None:
@@ -216,6 +226,3 @@ def get_tunnel_status(model_id: str) -> Dict[str, Any]:
 
     _cleanup_state(model_id)
     return {"status": "stopped", "url": None}
-
-
-

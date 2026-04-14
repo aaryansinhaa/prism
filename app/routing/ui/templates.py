@@ -8,7 +8,9 @@ from typing import Any, Dict
 from app.utils.docker_utils import escape_html
 
 
-def base_layout(title: str, content: str, show_sidebar: bool = False, active_nav: str = "") -> str:
+def base_layout(
+    title: str, content: str, show_sidebar: bool = False, active_nav: str = ""
+) -> str:
     sidebar = ""
     if show_sidebar:
         dashboard_class = (
@@ -167,11 +169,11 @@ def upload_page() -> str:
 
 
 def upload_success_response(
-  model_id: str,
-  port: int,
-  tunnel_url: str | None = None,
-  tunnel_warning: str | None = None,
-  qr_data_uri: str | None = None,
+    model_id: str,
+    port: int,
+    tunnel_url: str | None = None,
+    tunnel_warning: str | None = None,
+    qr_data_uri: str | None = None,
 ) -> str:
     ui_url = f"http://127.0.0.1:8000/predict?model_id={model_id}"
     api_url = f"http://127.0.0.1:{port}/predict"
@@ -201,9 +203,7 @@ def upload_success_response(
 
     warning_block = ""
     if tunnel_warning:
-      warning_block = (
-        f'<div class=\"alert-warning mb-4\">⚠ Tunnel unavailable: {tunnel_warning}</div>'
-      )
+        warning_block = f'<div class="alert-warning mb-4">⚠ Tunnel unavailable: {tunnel_warning}</div>'
 
     return f"""<div class=\"alert-success mb-4\">✓ Model deployed successfully!</div>
   {warning_block}
@@ -235,87 +235,99 @@ def upload_success_response(
 
 def _build_sample_from_schema(schema: Any) -> Any:
     if not isinstance(schema, dict):
-      return {}
+        return {}
 
     schema_type = schema.get("type")
     if schema_type == "object" or "properties" in schema:
-      result: dict[str, Any] = {}
-      properties = schema.get("properties", {})
-      required = schema.get("required", [])
-      if isinstance(properties, dict):
-        keys = list(properties.keys())
-        for key in keys:
-          value_schema = properties.get(key, {})
-          if key in required or len(result) < 3:
-            result[key] = _build_sample_from_schema(value_schema)
-      return result
+        result: dict[str, Any] = {}
+        properties = schema.get("properties", {})
+        required = schema.get("required", [])
+        if isinstance(properties, dict):
+            keys = list(properties.keys())
+            for key in keys:
+                value_schema = properties.get(key, {})
+                if key in required or len(result) < 3:
+                    result[key] = _build_sample_from_schema(value_schema)
+        return result
 
     if schema_type == "array":
-      item_schema = schema.get("items", {})
-      return [_build_sample_from_schema(item_schema)]
+        item_schema = schema.get("items", {})
+        return [_build_sample_from_schema(item_schema)]
 
     if schema_type == "string":
-      return "text"
+        return "text"
     if schema_type == "integer":
-      return 1
+        return 1
     if schema_type == "number":
-      return 1.0
+        return 1.0
     if schema_type == "boolean":
-      return True
+        return True
     if schema_type == "null":
-      return None
+        return None
 
     return {}
 
 
 def _contract_hints(expected_input_json: str | None) -> tuple[str, str | None]:
     if not expected_input_json:
-      return "", None
+        return "", None
 
     try:
-      parsed = json.loads(expected_input_json)
+        parsed = json.loads(expected_input_json)
     except json.JSONDecodeError:
-      return "", None
+        return "", None
 
     if not isinstance(parsed, dict):
-      return "", json.dumps(parsed, indent=2, ensure_ascii=False)
+        return "", json.dumps(parsed, indent=2, ensure_ascii=False)
 
     schema_like = any(
-      key in parsed
-      for key in ("type", "properties", "required", "items", "enum", "additionalProperties")
+        key in parsed
+        for key in (
+            "type",
+            "properties",
+            "required",
+            "items",
+            "enum",
+            "additionalProperties",
+        )
     )
     if not schema_like:
-      return "", json.dumps(parsed, indent=2, ensure_ascii=False)
+        return "", json.dumps(parsed, indent=2, ensure_ascii=False)
 
     hints: list[str] = []
     required = parsed.get("required", [])
     if isinstance(required, list) and required:
-      hints.append("Required fields: " + ", ".join(str(item) for item in required))
+        hints.append("Required fields: " + ", ".join(str(item) for item in required))
 
     properties = parsed.get("properties", {})
     if isinstance(properties, dict) and properties:
-      typed_fields: list[str] = []
-      for field_name, field_schema in properties.items():
-        field_type = "any"
-        if isinstance(field_schema, dict) and isinstance(field_schema.get("type"), str):
-          field_type = field_schema["type"]
-        typed_fields.append(f"{field_name}: {field_type}")
-      hints.append("Field types: " + ", ".join(typed_fields))
+        typed_fields: list[str] = []
+        for field_name, field_schema in properties.items():
+            field_type = "any"
+            if isinstance(field_schema, dict) and isinstance(
+                field_schema.get("type"), str
+            ):
+                field_type = field_schema["type"]
+            typed_fields.append(f"{field_name}: {field_type}")
+        hints.append("Field types: " + ", ".join(typed_fields))
 
     additional = parsed.get("additionalProperties")
     if additional is False:
-      hints.append("Additional fields are not allowed")
+        hints.append("Additional fields are not allowed")
 
     sample_payload = _build_sample_from_schema(parsed)
     sample_json = json.dumps(sample_payload, indent=2, ensure_ascii=False)
 
     if not hints:
-      return "", sample_json
+        return "", sample_json
 
     hints_html = "".join(
-      f"<li class=\"text-xs text-gray-700\">{escape_html(hint)}</li>" for hint in hints
+        f'<li class="text-xs text-gray-700">{escape_html(hint)}</li>' for hint in hints
     )
-    return f"<ul class=\"list-disc list-inside space-y-1 mt-2\">{hints_html}</ul>", sample_json
+    return (
+        f'<ul class="list-disc list-inside space-y-1 mt-2">{hints_html}</ul>',
+        sample_json,
+    )
 
 
 def predict_page(
@@ -326,30 +338,45 @@ def predict_page(
     hints_html, sample_json = _contract_hints(expected_input_json)
     model_meta_block = ""
     if model_name or model_description or expected_input_json:
-        name_line = f"<p class=\"text-sm text-black mb-1\"><strong>Name:</strong> {escape_html(model_name or '')}</p>" if model_name else ""
-        description_line = f"<p class=\"text-sm text-gray-700 mb-1\"><strong>Description:</strong> {escape_html(model_description or '')}</p>" if model_description else ""
+        name_line = (
+            f"<p class=\"text-sm text-black mb-1\"><strong>Name:</strong> {escape_html(model_name or '')}</p>"
+            if model_name
+            else ""
+        )
+        description_line = (
+            f"<p class=\"text-sm text-gray-700 mb-1\"><strong>Description:</strong> {escape_html(model_description or '')}</p>"
+            if model_description
+            else ""
+        )
         expected_line = ""
         if expected_input_json:
-            expected_line = (
-                "<p class=\"text-sm text-black mb-1\"><strong>Expected Input JSON:</strong></p>"
-                f"<pre class=\"text-xs text-black bg-white border border-black rounded-md p-3 overflow-auto\">{escape_html(expected_input_json)}</pre>"
-                + ("<p class=\"text-sm text-black mt-3 mb-1\"><strong>Input Contract Hints:</strong></p>" + hints_html if hints_html else "")
-                + (f"<p class=\"text-sm text-black mt-3 mb-1\"><strong>Sample Payload:</strong></p><pre class=\"text-xs text-black bg-white border border-black rounded-md p-3 overflow-auto\">{escape_html(sample_json)}</pre>" if sample_json else "")
+            expected_line = '<p class="text-sm text-black mb-1"><strong>Expected Input JSON:</strong></p>' f'<pre class="text-xs text-black bg-white border border-black rounded-md p-3 overflow-auto">{escape_html(expected_input_json)}</pre>' + (
+                '<p class="text-sm text-black mt-3 mb-1"><strong>Input Contract Hints:</strong></p>'
+                + hints_html
+                if hints_html
+                else ""
+            ) + (
+                f'<p class="text-sm text-black mt-3 mb-1"><strong>Sample Payload:</strong></p><pre class="text-xs text-black bg-white border border-black rounded-md p-3 overflow-auto">{escape_html(sample_json)}</pre>'
+                if sample_json
+                else ""
             )
         model_meta_block = (
-            "<div class=\"bg-white p-4 rounded-md border border-black mb-6 space-y-1\">"
+            '<div class="bg-white p-4 rounded-md border border-black mb-6 space-y-1">'
             f"{name_line}{description_line}{expected_line}"
             "</div>"
         )
 
-    return """<div class=\"card bg-white rounded-lg shadow-md p-8 border border-black\">
+    return (
+        """<div class=\"card bg-white rounded-lg shadow-md p-8 border border-black\">
   <div class=\"text-center mb-8 border-b border-black pb-6\">
     <h1 class=\"text-3xl font-bold mb-2\">🔮 Make Predictions</h1>
     <p class=\"text-gray-700 text-sm\">Send input data to your deployed model</p>
   </div>
 
   <div class=\"bg-white p-4 rounded-md border border-black mb-6\"><p class=\"text-sm text-black\"><strong id=\"modelIdDisplay\">Loading...</strong></p></div>
-  """ + model_meta_block + """
+  """
+        + model_meta_block
+        + """
 
   <form hx-post=\"/predict-result\" hx-target=\"#result\" hx-indicator=\"#predictLoading\" class=\"space-y-6\">
     <input type=\"hidden\" id=\"modelIdInput\" name=\"model_id\">
@@ -374,6 +401,7 @@ def predict_page(
     document.getElementById('modelIdDisplay').innerHTML = '<span class=\"text-red-600\">Model ID not provided.</span>';
   }
 </script>"""
+    )
 
 
 def prediction_result_component(prediction: Dict[str, Any], model_id: str) -> str:
@@ -412,14 +440,14 @@ def dashboard_page_with_cards(model_cards: list, has_models: bool) -> str:
     for card in model_cards:
         tunnel_block = ""
         if card.tunnel_url:
-            tunnel_block = f'''
+            tunnel_block = f"""
             <div class="bg-white border border-black rounded-lg p-3 mt-4">
                 <p class="text-xs font-medium text-black mb-2">🌐 Public Link (Tunnel)</p>
                 <code class="text-xs bg-white p-2 rounded border border-black block overflow-auto mb-3 font-mono break-all">{card.tunnel_prediction_url}</code>
                 <button type="button" class="btn-secondary text-xs w-full" onclick="copyToClipboard('{card.tunnel_prediction_url}', this)">Copy Link</button>
                 <p class="text-xs text-gray-600 mt-2">Clients can ONLY access this model via this link.</p>
             </div>
-'''
+"""
 
         card_html.append(f"""
     <div class="model-card">
@@ -483,14 +511,14 @@ def dashboard_page_with_cards(model_cards: list, has_models: bool) -> str:
 def model_logs_modal(container_id: str) -> str:
     """Render modal with container logs."""
     from app.services.dashboard_service import ContainerLogsService
-    
+
     logs_dto = ContainerLogsService.get_container_logs_dto(container_id, lines=50)
-    
+
     if logs_dto.has_error:
         logs_content = f"Error retrieving logs: {logs_dto.error}"
     else:
         logs_content = logs_dto.logs
-    
+
     safe_logs = logs_content.replace("<", "&lt;").replace(">", "&gt;")
     return f"""
 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

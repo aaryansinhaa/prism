@@ -87,7 +87,7 @@ async def upload_and_run_model(
     # Optionally start tunnel if enabled
     tunnel_url = None
     enable_tunnel = os.environ.get("ENABLE_TUNNEL", "false").lower() == "true"
-    
+
     if enable_tunnel:
         try:
             tunnel_url, _ = await start_tunnel(host_port, model_id)

@@ -14,10 +14,6 @@ from fastapi.responses import HTMLResponse
 from app.core import run_model_container
 from app.core.input_contract import validate_payload_against_expected_input_json
 from app.core.tunnel import start_tunnel
-from app.dto.dto import (
-    HtmlResponseDTO,
-    ModelCardDTO,
-)
 from app.models import ingest_upload_and_build, validate_upload_extension
 from app.registry.container_registry import register_container, registry_path
 from app.routing.ui.templates import (
@@ -27,17 +23,14 @@ from app.routing.ui.templates import (
     predict_page,
     prediction_error_component,
     prediction_result_component,
-    upload_page,
     upload_model_page,
     upload_success_response,
 )
 from app.services.dashboard_service import (
-    ContainerLogsService,
     ContainerService,
     DashboardService,
     ModelRegistryService,
 )
-from app.utils.docker_utils import delete_container, get_container_logs
 from app.utils.qr_utils import generate_qr_data_uri
 
 router = APIRouter(tags=["frontend"])
@@ -76,14 +69,23 @@ def _validate_expected_input_json(raw_value: str | None) -> str | None:
 async def dashboard() -> str:
     """Render main dashboard with all deployed models."""
     dashboard_dto = DashboardService.build_dashboard_dto()
-    html_content = dashboard_page_with_cards(dashboard_dto.model_cards, dashboard_dto.has_models)
-    return base_layout("PRISM - Dashboard", html_content, show_sidebar=True, active_nav="dashboard")
+    html_content = dashboard_page_with_cards(
+        dashboard_dto.model_cards, dashboard_dto.has_models
+    )
+    return base_layout(
+        "PRISM - Dashboard", html_content, show_sidebar=True, active_nav="dashboard"
+    )
 
 
 @router.get("/upload-model", response_class=HTMLResponse)
 async def upload_model_ui() -> str:
     """Render upload model page."""
-    return base_layout("PRISM - Upload Model", upload_model_page(), show_sidebar=True, active_nav="upload")
+    return base_layout(
+        "PRISM - Upload Model",
+        upload_model_page(),
+        show_sidebar=True,
+        active_nav="upload",
+    )
 
 
 @router.get("/model-logs", response_class=HTMLResponse)
@@ -118,7 +120,9 @@ async def model_logs_ui() -> str:
     <div id="modal-logs"></div>
 </div>
 """
-    return base_layout("PRISM - Model Logs", logs_content, show_sidebar=True, active_nav="logs")
+    return base_layout(
+        "PRISM - Model Logs", logs_content, show_sidebar=True, active_nav="logs"
+    )
 
 
 @router.get("/api/model-logs", response_class=HTMLResponse)
@@ -133,7 +137,7 @@ async def restart_model(container_id: str = Form(...)) -> str:
     try:
         success, message = await ContainerService.restart_model_async(container_id)
         if success:
-            return f"""<div class="model-card">
+            return """<div class="model-card">
     <div class="alert-success mb-4">✓ Container restarted successfully!</div>
     <a href="/" class="btn-secondary">Return to Dashboard</a>
 </div>"""
@@ -205,7 +209,9 @@ async def upload_and_run_ui(
 
         cleaned_name = _clean_text(model_name)
         cleaned_description = _clean_text(model_description)
-        validated_expected_input_json = _validate_expected_input_json(expected_input_json)
+        validated_expected_input_json = _validate_expected_input_json(
+            expected_input_json
+        )
 
         upload_result = await ingest_upload_and_build(file)
         model_id = upload_result["model_id"]
@@ -252,13 +258,16 @@ async def upload_and_run_ui(
             qr_data_uri=qr_data_uri,
         )
         # Add button to return to dashboard
-        return success_html + '<div class="mt-6"><a href="/" hx-boost="true" class="btn-secondary w-full text-center block">Return to Dashboard</a></div>'
+        return (
+            success_html
+            + '<div class="mt-6"><a href="/" hx-boost="true" class="btn-secondary w-full text-center block">Return to Dashboard</a></div>'
+        )
     except HTTPException as exc:
-        return f"<div class=\"alert-error\">Error: {exc.detail}</div>"
+        return f'<div class="alert-error">Error: {exc.detail}</div>'
     except RuntimeError as exc:
-        return f"<div class=\"alert-error\">Error: {str(exc)}</div>"
+        return f'<div class="alert-error">Error: {str(exc)}</div>'
     except Exception as exc:
-        return f"<div class=\"alert-error\">Unexpected error: {str(exc)}</div>"
+        return f'<div class="alert-error">Unexpected error: {str(exc)}</div>'
 
 
 @router.get("/predict", response_class=HTMLResponse)
@@ -333,7 +342,9 @@ async def predict_result(
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(f"http://127.0.0.1:{port}/predict", json=payload)
+            response = await client.post(
+                f"http://127.0.0.1:{port}/predict", json=payload
+            )
         if response.status_code != 200:
             return prediction_error_component(
                 f"Server returned {response.status_code}: {response.text}",

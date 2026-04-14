@@ -31,7 +31,9 @@ class UploadAndRunResponse(UploadResponse):
     container_id: str = Field(..., description="Docker container ID")
     host_port: int = Field(..., description="Host port for inference")
     predict_url: str = Field(..., description="URL to call /predict endpoint")
-    tunnel_url: str | None = Field(None, description="Public tunnel URL (if tunnel enabled)")
+    tunnel_url: str | None = Field(
+        None, description="Public tunnel URL (if tunnel enabled)"
+    )
     registry: ContainerRegistry = Field(..., description="Registry record")
     registry_path: str = Field(..., description="Path to registry file")
 

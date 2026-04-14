@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-
 _SCHEMA_KEYS = {
     "$schema",
     "type",
@@ -59,7 +58,9 @@ def _validate_schema(schema: dict[str, Any], value: Any, path: str = "$") -> str
     if isinstance(enum_values, list) and value not in enum_values:
         return f"{path}: value not in allowed enum"
 
-    if (expected_type == "object" or "properties" in schema or "required" in schema) and not isinstance(value, dict):
+    if (
+        expected_type == "object" or "properties" in schema or "required" in schema
+    ) and not isinstance(value, dict):
         return f"{path}: expected object"
 
     if isinstance(value, dict):
@@ -94,13 +95,21 @@ def _validate_schema(schema: dict[str, Any], value: Any, path: str = "$") -> str
             if error:
                 return error
 
-    if "minimum" in schema and isinstance(value, (int, float)) and not isinstance(value, bool):
+    if (
+        "minimum" in schema
+        and isinstance(value, (int, float))
+        and not isinstance(value, bool)
+    ):
         numeric_value = float(value)
         minimum = schema.get("minimum")
         if isinstance(minimum, (int, float)) and numeric_value < float(minimum):
             return f"{path}: value must be >= {minimum}"
 
-    if "maximum" in schema and isinstance(value, (int, float)) and not isinstance(value, bool):
+    if (
+        "maximum" in schema
+        and isinstance(value, (int, float))
+        and not isinstance(value, bool)
+    ):
         numeric_value = float(value)
         maximum = schema.get("maximum")
         if isinstance(maximum, (int, float)) and numeric_value > float(maximum):
@@ -140,7 +149,11 @@ def _validate_example(example: Any, value: Any, path: str = "$") -> str | None:
         return None if value is None else f"{path}: expected null"
 
     if isinstance(example, int) and not isinstance(example, bool):
-        return None if isinstance(value, int) and not isinstance(value, bool) else f"{path}: expected integer"
+        return (
+            None
+            if isinstance(value, int) and not isinstance(value, bool)
+            else f"{path}: expected integer"
+        )
 
     if isinstance(example, float):
         return None if _is_number(value) else f"{path}: expected number"

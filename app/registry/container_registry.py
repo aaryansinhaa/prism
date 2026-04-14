@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 from typing import Any, Dict
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_REGISTRY_PATH = REPO_ROOT / "app" / "registry" / "containers.json"
 
@@ -59,7 +58,7 @@ def register_container(
         record["expected_input_json"] = expected_input_json
     if tunnel_url:
         record["tunnel_url"] = tunnel_url
-    
+
     data["models"][model_id] = record
 
     with path.open("w", encoding="utf-8") as file:

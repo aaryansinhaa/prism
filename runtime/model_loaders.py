@@ -13,7 +13,6 @@ from typing import Any
 
 from runtime.adapters.base import BaseModel, ModelLoadError
 
-
 _MODEL_TYPE_BY_SUFFIX = {
     ".onnx": "onnx",
     ".pkl": "sklearn",

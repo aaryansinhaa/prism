@@ -24,7 +24,9 @@ def test_post_models_creates_and_runs_model(monkeypatch, tmp_path):
         if command[:3] == ["docker", "build", "-t"]:
             return subprocess.CompletedProcess(command, 0, stdout="built", stderr="")
         if command[:3] == ["docker", "run", "-d"]:
-            return subprocess.CompletedProcess(command, 0, stdout="container-lifecycle", stderr="")
+            return subprocess.CompletedProcess(
+                command, 0, stdout="container-lifecycle", stderr=""
+            )
         raise AssertionError(f"Unexpected command: {command}")
 
     monkeypatch.setattr("subprocess.run", fake_run)
@@ -37,7 +39,13 @@ def test_post_models_creates_and_runs_model(monkeypatch, tmp_path):
                 "model_description": "Created through PRISM-11 endpoint",
                 "expected_input_json": '{"input": [1.0, 2.0]}',
             },
-            files={"file": ("uploaded_model.onnx", io.BytesIO(b"model-bytes"), "application/octet-stream")},
+            files={
+                "file": (
+                    "uploaded_model.onnx",
+                    io.BytesIO(b"model-bytes"),
+                    "application/octet-stream",
+                )
+            },
         )
 
     assert response.status_code == 200, response.text

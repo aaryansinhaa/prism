@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import subprocess
-from typing import Optional
 
 from app.models.model import ContainerStatus
 
@@ -91,7 +90,10 @@ def restart_container(container_id: str) -> tuple[bool, str]:
         if status.is_running:
             return True, "Container restarted successfully"
         else:
-            return False, "Container restart initiated but status unclear. Please check Docker logs."
+            return (
+                False,
+                "Container restart initiated but status unclear. Please check Docker logs.",
+            )
     except Exception as e:
         return False, f"Error restarting container: {str(e)}"
 
