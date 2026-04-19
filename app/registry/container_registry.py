@@ -228,3 +228,183 @@ def remove_model_version(model_id: str, version: str | None = None) -> bool:
     del models[model_id]
     save_registry(data)
     return True
+
+
+def register_container_instance(
+    model_id: str,
+    container_id: str,
+    port: int,
+    version: str | None = None,
+    instance_index: int = 0,
+    name: str | None = None,
+    description: str | None = None,
+    expected_input_json: str | None = None,
+    tunnel_url: str | None = None,
+) -> Dict[str, Any]:
+    """Register a container instance for load balancing.
+
+    Supports multiple instances per model:version pair. Each instance is
+    tracked with an index for round-robin distribution.
+    """
+    data = load_registry()
+    model_version = version or "v1"
+
+    # Build instance record
+    instance_record = {
+        "container_id": container_id,
+        "port": int(port),
+        "instance_index": instance_index,
+    }
+
+    models = data.setdefault("models", {})
+    existing = models.get(model_id)
+
+    if existing is None:
+        # New model: create with instances list
+        models[model_id] = {
+            "model_id": model_id,
+            "active_version": model_version,
+            "versions": {
+                model_version: {
+                    "model_id": model_id,
+                    "version": model_version,
+                    "instances": [instance_record],
+                }
+            },
+        }
+        if name:
+            models[model_id]["versions"][model_version]["name"] = name
+        if description:
+            models[model_id]["versions"][model_version]["description"] = description
+        if expected_input_json:
+            models[model_id]["versions"][model_version][
+                "expected_input_json"
+            ] = expected_input_json
+        if tunnel_url:
+            models[model_id]["versions"][model_version]["tunnel_url"] = tunnel_url
+    elif isinstance(existing, dict):
+        versions = existing.get("versions")
+        if isinstance(versions, dict):
+            # Model exists with versions: add to this version's instances
+            if model_version not in versions:
+                versions[model_version] = {
+                    "model_id": model_id,
+                    "version": model_version,
+                    "instances": [instance_record],
+                }
+                if name:
+                    versions[model_version]["name"] = name
+                if description:
+                    versions[model_version]["description"] = description
+                if expected_input_json:
+                    versions[model_version]["expected_input_json"] = expected_input_json
+                if tunnel_url:
+                    versions[model_version]["tunnel_url"] = tunnel_url
+            else:
+                # Version exists: append to instances
+                version_entry = versions[model_version]
+                if isinstance(version_entry, dict):
+                    instances = version_entry.get("instances", [])
+                    if not isinstance(instances, list):
+                        instances = []
+                    instances.append(instance_record)
+                    version_entry["instances"] = instances
+
+            existing["active_version"] = model_version
+        else:
+            # Legacy flat entry: convert to versioned with instances
+            legacy_version = _legacy_version_name(existing)
+            legacy_entry = _normalize_version_record(model_id, legacy_version, existing)
+            legacy_entry["instances"] = [
+                {
+                    "container_id": legacy_entry.get("container_id"),
+                    "port": legacy_entry.get("port"),
+                    "instance_index": 0,
+                }
+            ]
+
+            models[model_id] = {
+                "model_id": model_id,
+                "active_version": model_version,
+                "versions": {
+                    legacy_version: legacy_entry,
+                    model_version: {
+                        "model_id": model_id,
+                        "version": model_version,
+                        "instances": [instance_record],
+                    },
+                },
+            }
+            if name:
+                models[model_id]["versions"][model_version]["name"] = name
+            if description:
+                models[model_id]["versions"][model_version]["description"] = description
+            if expected_input_json:
+                models[model_id]["versions"][model_version][
+                    "expected_input_json"
+                ] = expected_input_json
+            if tunnel_url:
+                models[model_id]["versions"][model_version]["tunnel_url"] = tunnel_url
+
+    save_registry(data)
+    return instance_record
+
+
+def get_model_instances(
+    model_id: str,
+    version: str | None = None,
+    registry: Dict[str, Any] | None = None,
+) -> list[Dict[str, Any]]:
+    """Get all instances for a model version.
+
+    Returns a list of instance records for load balancing.
+    """
+    data = registry if registry is not None else load_registry()
+    models = data.get("models", {}) if isinstance(data, dict) else {}
+
+    if model_id not in models:
+        return []
+
+    model_entry = models[model_id]
+    if not isinstance(model_entry, dict):
+        return []
+
+    # Try versioned structure first
+    versions = model_entry.get("versions")
+    if isinstance(versions, dict) and versions:
+        resolved_version = version
+        if resolved_version is None:
+            active_version = model_entry.get("active_version")
+            resolved_version = (
+                active_version if isinstance(active_version, str) else None
+            )
+        if resolved_version is None:
+            resolved_version = next(iter(versions.keys()))
+
+        version_entry = versions.get(resolved_version)
+        if isinstance(version_entry, dict):
+            instances = version_entry.get("instances", [])
+            if isinstance(instances, list) and instances:
+                return instances
+            # Fallback: old single-container format
+            if "port" in version_entry:
+                return [
+                    {
+                        "container_id": version_entry.get("container_id", ""),
+                        "port": version_entry.get("port"),
+                        "instance_index": 0,
+                    }
+                ]
+        return []
+
+    # Legacy flat entry: convert to single instance
+    if "port" in model_entry:
+        return [
+            {
+                "container_id": model_entry.get("container_id", ""),
+                "port": model_entry.get("port"),
+                "instance_index": 0,
+            }
+        ]
+
+    return []

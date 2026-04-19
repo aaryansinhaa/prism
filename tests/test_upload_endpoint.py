@@ -114,10 +114,10 @@ def test_upload_and_run_starts_container(monkeypatch, tmp_path):
         registry_data = json.load(file)
 
     assert payload["model_id"] in registry_data["models"]
-    assert (
-        registry_data["models"][payload["model_id"]]["container_id"] == "container123"
-    )
-    assert registry_data["models"][payload["model_id"]]["port"] == payload["host_port"]
+    # With versioned instances structure, container info is in versions
+    version_entry = registry_data["models"][payload["model_id"]]["versions"]["v1"]
+    assert version_entry["instances"][0]["container_id"] == "container123"
+    assert version_entry["instances"][0]["port"] == payload["host_port"]
 
 
 def test_upload_and_run_returns_500_on_run_failure(monkeypatch, tmp_path):
@@ -223,10 +223,11 @@ def test_upload_and_run_persists_metadata(monkeypatch, tmp_path):
     with registry_file.open("r", encoding="utf-8") as file:
         registry_data = json.load(file)
 
-    record = registry_data["models"][model_id]
-    assert record["name"] == "Churn Predictor"
-    assert record["description"] == "Predicts customer churn risk."
-    assert record["expected_input_json"] == '{"features": [1.0, 2.0, 3.0]}'
+    # With versioned instances structure, metadata is in version entry
+    version_entry = registry_data["models"][model_id]["versions"]["v1"]
+    assert version_entry["name"] == "Churn Predictor"
+    assert version_entry["description"] == "Predicts customer churn risk."
+    assert version_entry["expected_input_json"] == '{"features": [1.0, 2.0, 3.0]}'
 
 
 def test_upload_and_run_rejects_invalid_expected_input_json(monkeypatch, tmp_path):

@@ -129,11 +129,13 @@ def test_upload_and_run_with_tunnel_enabled(monkeypatch, tmp_path):
     assert payload["tunnel_url"] is not None
     assert payload["tunnel_url"].endswith(".ngrok.io")
 
-    # Verify registry stores tunnel info
+    # Verify registry stores tunnel info in versioned structure
     with registry_file.open("r") as f:
         registry = json.load(f)
-    assert "tunnel_url" in registry["models"][model_id]
-    assert registry["models"][model_id]["tunnel_url"].endswith(".ngrok.io")
+    # tunnel_url is stored in the version entry
+    version_entry = registry["models"][model_id]["versions"]["v1"]
+    assert "tunnel_url" in version_entry
+    assert version_entry["tunnel_url"].endswith(".ngrok.io")
 
 
 def test_upload_and_run_tunnel_startup_failure_is_non_fatal(monkeypatch, tmp_path):

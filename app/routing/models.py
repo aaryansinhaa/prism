@@ -11,7 +11,11 @@ from starlette import status
 from app.core import run_model_container
 from app.core.tunnel import start_tunnel
 from app.models import ingest_upload_and_build, validate_upload_extension
-from app.registry.container_registry import register_container, registry_path
+from app.registry.container_registry import (
+    register_container,
+    register_container_instance,
+    registry_path,
+)
 from app.services.dashboard_service import ContainerService, ModelRegistryService
 
 router = APIRouter(prefix="/models", tags=["models"])
@@ -108,15 +112,24 @@ async def upload_and_run_model(
     if _single_active_mode_enabled():
         await ContainerService.kill_all_models_async()
 
-    registry_record = register_container(
+    # Register as first instance (index 0) of this model version
+    registry_record = register_container_instance(
         model_id=resolved_model_id,
         version=resolved_version,
         container_id=container_id,
         port=host_port,
+        instance_index=0,
         name=cleaned_name,
         description=cleaned_description,
         expected_input_json=validated_expected_input_json,
         tunnel_url=tunnel_url,
+    )
+
+    # Build response - include flattened registry entry for backward compatibility
+    from app.registry.container_registry import load_registry, resolve_model_version_entry
+    registry_data = load_registry()
+    model_entry, _, _ = resolve_model_version_entry(
+        resolved_model_id, resolved_version, registry_data
     )
 
     upload_result.update(
@@ -128,7 +141,13 @@ async def upload_and_run_model(
             "deployment_key": deployment_key,
             "predict_url": f"http://127.0.0.1:{host_port}/predict",
             "tunnel_url": tunnel_url,
-            "registry": registry_record,
+            "registry": {
+                "model_id": resolved_model_id,
+                "version": resolved_version,
+                "container_id": container_id,
+                "port": host_port,
+                **model_entry,
+            },
             "registry_path": str(registry_path()),
         }
     )
