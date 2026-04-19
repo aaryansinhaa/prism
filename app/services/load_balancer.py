@@ -5,9 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-import httpx
-from starlette import status
-
 
 @dataclass
 class ContainerInstance:

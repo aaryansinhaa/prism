@@ -12,7 +12,6 @@ from app.core import run_model_container
 from app.core.tunnel import start_tunnel
 from app.models import ingest_upload_and_build, validate_upload_extension
 from app.registry.container_registry import (
-    register_container,
     register_container_instance,
     registry_path,
 )
@@ -113,7 +112,7 @@ async def upload_and_run_model(
         await ContainerService.kill_all_models_async()
 
     # Register as first instance (index 0) of this model version
-    registry_record = register_container_instance(
+    register_container_instance(
         model_id=resolved_model_id,
         version=resolved_version,
         container_id=container_id,
@@ -126,7 +125,11 @@ async def upload_and_run_model(
     )
 
     # Build response - include flattened registry entry for backward compatibility
-    from app.registry.container_registry import load_registry, resolve_model_version_entry
+    from app.registry.container_registry import (
+        load_registry,
+        resolve_model_version_entry,
+    )
+
     registry_data = load_registry()
     model_entry, _, _ = resolve_model_version_entry(
         resolved_model_id, resolved_version, registry_data

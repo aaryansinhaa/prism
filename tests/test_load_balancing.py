@@ -15,8 +15,6 @@ from app.registry.container_registry import (
 )
 from app.services.load_balancer import (
     LoadBalancer,
-    LoadBalancerState,
-    ContainerInstance,
     reset_load_balancer,
 )
 
@@ -223,7 +221,9 @@ class TestLoadBalancedPrediction:
             calls.append(container_url)
             return {"predictions": [42]}
 
-        monkeypatch.setattr("app.routing.inference.request_batcher.forward", fake_forward)
+        monkeypatch.setattr(
+            "app.routing.inference.request_batcher.forward", fake_forward
+        )
 
         with TestClient(app) as client:
             response = client.post(
@@ -282,7 +282,9 @@ class TestLoadBalancedPrediction:
             calls.append(container_url)
             return {"predictions": [42]}
 
-        monkeypatch.setattr("app.routing.inference.request_batcher.forward", fake_forward)
+        monkeypatch.setattr(
+            "app.routing.inference.request_batcher.forward", fake_forward
+        )
         reset_load_balancer()
 
         with TestClient(app) as client:

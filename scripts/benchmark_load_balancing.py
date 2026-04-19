@@ -7,25 +7,19 @@ Tests:
 4. Health tracking overhead
 """
 
-import asyncio
-import json
 import sys
 import time
 from pathlib import Path
 
-import httpx
+from app.registry.container_registry import (
+    get_model_instances,
+    register_container_instance,
+)
+from app.services.load_balancer import get_load_balancer, reset_load_balancer
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-
-from app.registry.container_registry import (
-    register_container_instance,
-    get_model_instances,
-    load_registry,
-    save_registry,
-)
-from app.services.load_balancer import LoadBalancer, get_load_balancer, reset_load_balancer
 
 
 def benchmark_load_balancer_initialization():
@@ -40,7 +34,7 @@ def benchmark_load_balancer_initialization():
     # Single instance registration
     start = time.perf_counter()
     for _ in range(1000):
-        lb.register_instance("model", "v1", f"container", 9001, 0)
+        lb.register_instance("model", "v1", "container", 9001, 0)
     single_instance_time = (time.perf_counter() - start) * 1000
     print(f"1000 single instance registrations: {single_instance_time:.2f}ms")
     print(f"  Average per registration: {single_instance_time / 1000:.4f}ms")
@@ -72,7 +66,7 @@ def benchmark_round_robin_selection():
     # Benchmark: 10,000 selections
     start = time.perf_counter()
     for _ in range(10000):
-        instance = lb.get_next_instance("model", "v1")
+        lb.get_next_instance("model", "v1")
     selection_time = (time.perf_counter() - start) * 1000
 
     print(f"10,000 round-robin selections (3 instances): {selection_time:.2f}ms")
@@ -86,7 +80,7 @@ def benchmark_round_robin_selection():
 
     start = time.perf_counter()
     for _ in range(10000):
-        instance = lb.get_next_instance("model", "v1")
+        lb.get_next_instance("model", "v1")
     selection_time_10 = (time.perf_counter() - start) * 1000
 
     print(f"\n10,000 round-robin selections (10 instances): {selection_time_10:.2f}ms")
@@ -100,6 +94,7 @@ def benchmark_registry_operations(tmp_path_str):
     print("=" * 60)
 
     import os
+
     tmp_path = Path(tmp_path_str)
     os.environ["MODEL_CONTAINER_REGISTRY_PATH"] = str(tmp_path / "registry.json")
 
@@ -120,7 +115,7 @@ def benchmark_registry_operations(tmp_path_str):
     # Benchmark instance retrieval
     start = time.perf_counter()
     for _ in range(1000):
-        instances = get_model_instances("benchmark_model", "v1")
+        get_model_instances("benchmark_model", "v1")
     retrieval_time = (time.perf_counter() - start) * 1000
     print(f"\n1000 instance retrievals: {retrieval_time:.2f}ms")
     print(f"  Average per retrieval: {retrieval_time / 1000:.4f}ms")
@@ -162,7 +157,7 @@ def benchmark_health_tracking():
     # Benchmark health summary
     start = time.perf_counter()
     for _ in range(1000):
-        health = lb.get_health_summary("model", "v1")
+        lb.get_health_summary("model", "v1")
     health_time = (time.perf_counter() - start) * 1000
     print(f"\n1000 health summaries: {health_time:.2f}ms")
     print(f"  Average per summary: {health_time / 1000:.4f}ms")
@@ -175,12 +170,12 @@ def benchmark_comparison():
     print("=" * 60)
 
     import tempfile
+
     with tempfile.TemporaryDirectory() as tmp_path:
         import os
+
         tmp_path = Path(tmp_path)
-        os.environ["MODEL_CONTAINER_REGISTRY_PATH"] = str(
-            tmp_path / "registry.json"
-        )
+        os.environ["MODEL_CONTAINER_REGISTRY_PATH"] = str(tmp_path / "registry.json")
 
         # Setup: Single instance
         register_container_instance(
@@ -196,7 +191,7 @@ def benchmark_comparison():
         for _ in range(10000):
             instances = get_model_instances("single", "v1")
             if len(instances) == 1:
-                port = instances[0]["port"]
+                _ = instances[0]["port"]
         single_time = (time.perf_counter() - start) * 1000
         print(f"10,000 single instance selections: {single_time:.2f}ms")
         print(f"  Average per selection: {single_time / 10000 * 1000:.4f}μs")
@@ -221,8 +216,7 @@ def benchmark_comparison():
         for _ in range(10000):
             instances = get_model_instances("multi", "v1")
             if len(instances) > 1:
-                instance = lb.get_next_instance("multi", "v1")
-                port = instance.port if instance else instances[0]["port"]
+                _ = lb.get_next_instance("multi", "v1")
         multi_time = (time.perf_counter() - start) * 1000
         print(f"\n10,000 multi-instance selections (10 instances): {multi_time:.2f}ms")
         print(f"  Average per selection: {multi_time / 10000 * 1000:.4f}μs")
@@ -238,6 +232,7 @@ def main():
     print("=" * 60)
 
     import tempfile
+
     with tempfile.TemporaryDirectory() as tmp_path:
         benchmark_load_balancer_initialization()
         benchmark_round_robin_selection()
