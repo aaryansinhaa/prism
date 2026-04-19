@@ -341,7 +341,9 @@ async def predict_result(
         with path.open("r", encoding="utf-8") as file:
             data: Dict[str, Any] = json.load(file)
     except (OSError, json.JSONDecodeError):
-        return prediction_error_component("Failed to read model registry", model_id, version)
+        return prediction_error_component(
+            "Failed to read model registry", model_id, version
+        )
 
     try:
         model_entry, resolved_version, _ = resolve_model_version_entry(

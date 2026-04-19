@@ -73,7 +73,9 @@ def test_public_predict_routes_to_active_version(monkeypatch, tmp_path):
 
     calls: list[str] = []
 
-    async def fake_forward(container_url: str, payload: dict[str, object]) -> dict[str, object]:
+    async def fake_forward(
+        container_url: str, payload: dict[str, object]
+    ) -> dict[str, object]:
         calls.append(container_url)
         return {"predictions": [42]}
 
@@ -122,7 +124,9 @@ def test_versioned_predict_routes_to_requested_version(monkeypatch, tmp_path):
 
     calls: list[str] = []
 
-    async def fake_forward(container_url: str, payload: dict[str, object]) -> dict[str, object]:
+    async def fake_forward(
+        container_url: str, payload: dict[str, object]
+    ) -> dict[str, object]:
         calls.append(container_url)
         return {"predictions": [99]}
 
@@ -140,7 +144,9 @@ def test_versioned_predict_routes_to_requested_version(monkeypatch, tmp_path):
     assert calls == ["http://127.0.0.1:9001/predict"]
 
 
-def test_versioned_registry_lookup_returns_404_for_missing_version(monkeypatch, tmp_path):
+def test_versioned_registry_lookup_returns_404_for_missing_version(
+    monkeypatch, tmp_path
+):
     registry_file = tmp_path / "containers.json"
     monkeypatch.setenv("MODEL_CONTAINER_REGISTRY_PATH", str(registry_file))
     monkeypatch.setenv("PRISM_API_KEYS", "test-key")

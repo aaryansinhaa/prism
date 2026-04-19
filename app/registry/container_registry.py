@@ -89,7 +89,9 @@ def resolve_model_version_entry(
     if isinstance(versions, dict) and versions:
         active_version = model_entry.get("active_version")
         resolved_version = version or (
-            active_version if isinstance(active_version, str) and active_version else None
+            active_version
+            if isinstance(active_version, str) and active_version
+            else None
         )
         if resolved_version is None:
             resolved_version = next(iter(versions.keys()))
@@ -97,7 +99,11 @@ def resolve_model_version_entry(
         version_entry = versions.get(resolved_version)
         if not isinstance(version_entry, dict):
             raise KeyError(f"{model_id}:{resolved_version}")
-        return version_entry, resolved_version, active_version if isinstance(active_version, str) else None
+        return (
+            version_entry,
+            resolved_version,
+            active_version if isinstance(active_version, str) else None,
+        )
 
     resolved_version = _legacy_version_name(model_entry)
     if version is not None and version != resolved_version:

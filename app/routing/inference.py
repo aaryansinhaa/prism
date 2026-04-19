@@ -140,7 +140,9 @@ async def predict_model(
     payload: Dict[str, Any] = Body(...),
     version: str | None = None,
 ) -> Dict[str, Any]:
-    return await _predict_model(model_id=model_id, request=request, payload=payload, version=version)
+    return await _predict_model(
+        model_id=model_id, request=request, payload=payload, version=version
+    )
 
 
 @router.post("/{model_id}/versions/{version}/predict")
@@ -150,4 +152,6 @@ async def predict_model_versioned(
     request: Request,
     payload: Dict[str, Any] = Body(...),
 ) -> Dict[str, Any]:
-    return await _predict_model(model_id=model_id, request=request, payload=payload, version=version)
+    return await _predict_model(
+        model_id=model_id, request=request, payload=payload, version=version
+    )
