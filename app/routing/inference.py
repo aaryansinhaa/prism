@@ -8,6 +8,7 @@ from fastapi import APIRouter, Body, HTTPException, Request
 from starlette import status
 
 from app.batching.request_batcher import request_batcher
+from app.caching import query_cache
 from app.core.access_control import enforce_rate_limit, log_access, validate_api_key
 from app.core.input_contract import validate_payload_against_expected_input_json
 from app.registry.container_registry import (
@@ -89,6 +90,12 @@ async def _predict_model(
                 detail=f"Input does not match expected format: {error}",
             )
 
+        cache_model_key = query_cache.make_model_key(model_id, resolved_version)
+        cached_response = query_cache.lookup(cache_model_key, payload)
+        if cached_response is not None:
+            response_status = status.HTTP_200_OK
+            return cached_response
+
         # Get instances for load balancing
         instances = get_model_instances(model_id, resolved_version, registry)
         if not instances:
@@ -129,6 +136,7 @@ async def _predict_model(
         container_url = f"http://127.0.0.1:{selected_port}/predict"
 
         response = await request_batcher.forward(container_url, payload)
+        query_cache.maybe_store(cache_model_key, payload, response)
         response_status = status.HTTP_200_OK
         return response
     except httpx.ConnectError:

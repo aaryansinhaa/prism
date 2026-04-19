@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 from app.main import app
+from app.caching import InMemoryFrequentQueryCache
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -306,3 +307,131 @@ def test_inference_rejects_payload_not_matching_expected_contract(
 
     assert response.status_code == 400
     assert "expected format" in response.json()["detail"].lower()
+
+
+def test_inference_caches_frequent_query_per_model(monkeypatch, tmp_path):
+    """Caches frequent requests and avoids forwarding repeated payloads."""
+    model_id = "cache_model"
+    api_key = "cache-key"
+
+    monkeypatch.setenv("PRISM_API_KEYS", api_key)
+    registry_file = tmp_path / "containers.json"
+    monkeypatch.setenv("MODEL_CONTAINER_REGISTRY_PATH", str(registry_file))
+    registry_data = {
+        "models": {
+            model_id: {
+                "model_id": model_id,
+                "container_id": "fake_container_cache",
+                "port": 9995,
+            }
+        }
+    }
+    registry_file.write_text(json.dumps(registry_data))
+
+    calls = {"count": 0}
+
+    async def fake_forward(_container_url, _payload):
+        calls["count"] += 1
+        return {"predictions": [42.0]}
+
+    monkeypatch.setattr("app.routing.inference.request_batcher.forward", fake_forward)
+
+    cache_backend = InMemoryFrequentQueryCache(
+        enabled=True,
+        min_frequency=2,
+        ttl_seconds=120,
+        max_entries_per_model=256,
+    )
+    monkeypatch.setattr("app.routing.inference.query_cache", cache_backend)
+
+    with TestClient(app) as client:
+        first = client.post(
+            f"/models/{model_id}/predict",
+            json={"input": [1.0, 2.0]},
+            headers=_auth_headers(api_key),
+        )
+        second = client.post(
+            f"/models/{model_id}/predict",
+            json={"input": [1.0, 2.0]},
+            headers=_auth_headers(api_key),
+        )
+        third = client.post(
+            f"/models/{model_id}/predict",
+            json={"input": [1.0, 2.0]},
+            headers=_auth_headers(api_key),
+        )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert third.status_code == 200
+    assert calls["count"] == 2
+
+
+def test_inference_cache_isolated_between_models(monkeypatch, tmp_path):
+    """Same payload should be cached independently for each model."""
+    model_a = "cache_model_a"
+    model_b = "cache_model_b"
+    api_key = "cache-split-key"
+
+    monkeypatch.setenv("PRISM_API_KEYS", api_key)
+    registry_file = tmp_path / "containers.json"
+    monkeypatch.setenv("MODEL_CONTAINER_REGISTRY_PATH", str(registry_file))
+    registry_data = {
+        "models": {
+            model_a: {
+                "model_id": model_a,
+                "container_id": "fake_container_a",
+                "port": 9994,
+            },
+            model_b: {
+                "model_id": model_b,
+                "container_id": "fake_container_b",
+                "port": 9993,
+            },
+        }
+    }
+    registry_file.write_text(json.dumps(registry_data))
+
+    calls = {"count": 0}
+
+    async def fake_forward(_container_url, _payload):
+        calls["count"] += 1
+        return {"predictions": [11.0]}
+
+    monkeypatch.setattr("app.routing.inference.request_batcher.forward", fake_forward)
+
+    cache_backend = InMemoryFrequentQueryCache(
+        enabled=True,
+        min_frequency=1,
+        ttl_seconds=120,
+        max_entries_per_model=256,
+    )
+    monkeypatch.setattr("app.routing.inference.query_cache", cache_backend)
+
+    with TestClient(app) as client:
+        first_a = client.post(
+            f"/models/{model_a}/predict",
+            json={"input": [3.0]},
+            headers=_auth_headers(api_key),
+        )
+        second_a = client.post(
+            f"/models/{model_a}/predict",
+            json={"input": [3.0]},
+            headers=_auth_headers(api_key),
+        )
+        first_b = client.post(
+            f"/models/{model_b}/predict",
+            json={"input": [3.0]},
+            headers=_auth_headers(api_key),
+        )
+        second_b = client.post(
+            f"/models/{model_b}/predict",
+            json={"input": [3.0]},
+            headers=_auth_headers(api_key),
+        )
+
+    assert first_a.status_code == 200
+    assert second_a.status_code == 200
+    assert first_b.status_code == 200
+    assert second_b.status_code == 200
+    assert calls["count"] == 2
