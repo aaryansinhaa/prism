@@ -137,5 +137,5 @@ class InMemoryFrequentQueryCache(QueryCacheBackend):
             while len(model_entries) > self.max_entries_per_model:
                 model_entries.popitem(last=False)
 
-FrequentQueryCache = InMemoryFrequentQueryCache
 
+FrequentQueryCache = InMemoryFrequentQueryCache

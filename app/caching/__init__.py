@@ -12,24 +12,24 @@ logger = logging.getLogger(__name__)
 
 
 def _build_query_cache_backend() -> QueryCacheBackend:
-	backend = os.environ.get("PRISM_QUERY_CACHE_BACKEND", "memory").strip().lower()
-	if backend in {"memory", "in-memory", "in_memory"}:
-		return InMemoryFrequentQueryCache.from_env()
+    backend = os.environ.get("PRISM_QUERY_CACHE_BACKEND", "memory").strip().lower()
+    if backend in {"memory", "in-memory", "in_memory"}:
+        return InMemoryFrequentQueryCache.from_env()
 
-	logger.warning(
-		"Unknown PRISM_QUERY_CACHE_BACKEND=%s, falling back to in-memory cache",
-		backend,
-	)
-	return InMemoryFrequentQueryCache.from_env()
+    logger.warning(
+        "Unknown PRISM_QUERY_CACHE_BACKEND=%s, falling back to in-memory cache",
+        backend,
+    )
+    return InMemoryFrequentQueryCache.from_env()
 
 
 query_cache: QueryCacheBackend = _build_query_cache_backend()
 frequent_query_cache = query_cache
 
 __all__ = [
-	"QueryCacheBackend",
-	"FrequentQueryCache",
-	"InMemoryFrequentQueryCache",
-	"query_cache",
-	"frequent_query_cache",
+    "QueryCacheBackend",
+    "FrequentQueryCache",
+    "InMemoryFrequentQueryCache",
+    "query_cache",
+    "frequent_query_cache",
 ]
