@@ -10,7 +10,7 @@ from starlette import status
 from app.batching.request_batcher import request_batcher
 from app.core.access_control import enforce_rate_limit, log_access, validate_api_key
 from app.core.input_contract import validate_payload_against_expected_input_json
-from app.registry.container_registry import registry_path
+from app.registry.container_registry import registry_path, resolve_model_version_entry
 
 router = APIRouter(prefix="/models", tags=["inference"])
 
@@ -31,11 +31,15 @@ def _load_registry() -> Dict[str, Any]:
         return {"models": {}}
 
 
-@router.post("/{model_id}/predict")
-async def predict_model(
+def _build_versioned_prediction_url(model_id: str, version: str) -> str:
+    return f"http://127.0.0.1:8000/models/{model_id}/versions/{version}/predict"
+
+
+async def _predict_model(
     model_id: str,
     request: Request,
     payload: Dict[str, Any] = Body(...),
+    version: str | None = None,
 ) -> Dict[str, Any]:
     """Forward prediction request to deployed model container.
 
@@ -52,15 +56,23 @@ async def predict_model(
         enforce_rate_limit(principal)
 
         registry = _load_registry()
-        models = registry.get("models", {})
-
-        if model_id not in models:
+        try:
+            model_entry, resolved_version, _ = resolve_model_version_entry(
+                model_id,
+                version=version,
+                registry=registry,
+            )
+        except KeyError:
+            if version:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Model {model_id} version {version} not found in registry",
+                )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Model {model_id} not found in registry",
             )
 
-        model_entry = models[model_id]
         port = model_entry.get("port")
         if port is None:
             raise HTTPException(
@@ -119,3 +131,23 @@ async def predict_model(
             status_code=response_status,
             latency_ms=latency_ms,
         )
+
+
+@router.post("/{model_id}/predict")
+async def predict_model(
+    model_id: str,
+    request: Request,
+    payload: Dict[str, Any] = Body(...),
+    version: str | None = None,
+) -> Dict[str, Any]:
+    return await _predict_model(model_id=model_id, request=request, payload=payload, version=version)
+
+
+@router.post("/{model_id}/versions/{version}/predict")
+async def predict_model_versioned(
+    model_id: str,
+    version: str,
+    request: Request,
+    payload: Dict[str, Any] = Body(...),
+) -> Dict[str, Any]:
+    return await _predict_model(model_id=model_id, request=request, payload=payload, version=version)

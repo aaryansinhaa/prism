@@ -12,7 +12,11 @@ from app.dto.dto import (
     ModelCardDTO,
 )
 from app.models.model import ModelMetadata
-from app.registry.container_registry import registry_path
+from app.registry.container_registry import (
+    load_registry,
+    remove_model_version,
+    registry_path,
+)
 from app.utils.docker_utils import (
     build_api_url,
     build_prediction_url,
@@ -30,59 +34,72 @@ class ModelRegistryService:
     @staticmethod
     def load_all_models() -> dict[str, ModelMetadata]:
         """Load all models from registry."""
-        path = registry_path()
-        if not path.exists():
-            return {}
-
         try:
-            with path.open("r", encoding="utf-8") as file:
-                data = json.load(file)
-                models_data = data.get("models", {})
-                return {
-                    model_id: ModelMetadata(
+            data = load_registry()
+            models_data = data.get("models", {})
+            if not isinstance(models_data, dict):
+                return {}
+
+            result: dict[str, ModelMetadata] = {}
+            for model_id, entry in models_data.items():
+                if not isinstance(entry, dict):
+                    continue
+
+                versions = entry.get("versions")
+                if isinstance(versions, dict) and versions:
+                    active_version = entry.get("active_version")
+                    if not isinstance(active_version, str) or not active_version:
+                        active_version = next(iter(versions.keys()))
+                    active_entry = versions.get(active_version)
+                    if not isinstance(active_entry, dict):
+                        active_entry = next(iter(versions.values()))
+                        active_version = str(active_entry.get("version", "v1"))
+
+                    result[model_id] = ModelMetadata(
                         model_id=model_id,
-                        container_id=m.get("container_id", "unknown"),
-                        port=m.get("port", 0),
-                        name=m.get("name"),
-                        description=m.get("description"),
-                        expected_input_json=m.get("expected_input_json"),
-                        tunnel_url=m.get("tunnel_url"),
+                        container_id=active_entry.get("container_id", "unknown"),
+                        port=int(active_entry.get("port", 0) or 0),
+                        version=str(active_entry.get("version", active_version)),
+                        active_version=active_version,
+                        available_versions=sorted(versions.keys()),
+                        name=active_entry.get("name"),
+                        description=active_entry.get("description"),
+                        expected_input_json=active_entry.get("expected_input_json"),
+                        tunnel_url=active_entry.get("tunnel_url"),
                     )
-                    for model_id, m in models_data.items()
-                }
+                    continue
+
+                version = entry.get("version")
+                result[model_id] = ModelMetadata(
+                    model_id=model_id,
+                    container_id=entry.get("container_id", "unknown"),
+                    port=entry.get("port", 0),
+                    version=version if isinstance(version, str) else None,
+                    active_version=version if isinstance(version, str) else None,
+                    available_versions=[version] if isinstance(version, str) else None,
+                    name=entry.get("name"),
+                    description=entry.get("description"),
+                    expected_input_json=entry.get("expected_input_json"),
+                    tunnel_url=entry.get("tunnel_url"),
+                )
+
+            return result
         except (OSError, json.JSONDecodeError):
             return {}
 
     @staticmethod
-    def remove_model_from_registry(model_id: str) -> bool:
+    def remove_model_from_registry(model_id: str, version: str | None = None) -> bool:
         """Remove model from registry."""
-        path = registry_path()
-        if not path.exists():
-            return False
-
-        try:
-            with path.open("r", encoding="utf-8") as file:
-                data = json.load(file)
-
-            if model_id in data.get("models", {}):
-                del data["models"][model_id]
-                with path.open("w", encoding="utf-8") as file:
-                    json.dump(data, file, indent=2)
-                return True
-            return False
-        except (OSError, json.JSONDecodeError):
-            return False
+        return remove_model_version(model_id, version=version)
 
     @staticmethod
     def clear_all_models() -> int:
         """Clear all models from registry. Returns count."""
-        path = registry_path()
         try:
-            with path.open("r", encoding="utf-8") as file:
-                data = json.load(file)
+            data = load_registry()
             count = len(data.get("models", {}))
             data["models"] = {}
-            with path.open("w", encoding="utf-8") as file:
+            with registry_path().open("w", encoding="utf-8") as file:
                 json.dump(data, file, indent=2)
             return count
         except (OSError, json.JSONDecodeError):
@@ -91,14 +108,8 @@ class ModelRegistryService:
     @staticmethod
     def prune_stale_models() -> list[str]:
         """Remove registry entries whose Docker containers no longer exist."""
-        path = registry_path()
-        if not path.exists():
-            return []
-
         try:
-            with path.open("r", encoding="utf-8") as file:
-                data = json.load(file)
-
+            data = load_registry()
             models = data.get("models", {})
             if not isinstance(models, dict):
                 return []
@@ -106,6 +117,28 @@ class ModelRegistryService:
             removed_model_ids: list[str] = []
             for model_id, metadata in list(models.items()):
                 if not isinstance(metadata, dict):
+                    continue
+
+                versions = metadata.get("versions")
+                if isinstance(versions, dict) and versions:
+                    removed_versions: list[str] = []
+                    for version, version_metadata in list(versions.items()):
+                        if not isinstance(version_metadata, dict):
+                            continue
+                        container_id = version_metadata.get("container_id")
+                        if not isinstance(container_id, str) or not container_id:
+                            continue
+                        if not container_exists(container_id):
+                            del versions[version]
+                            removed_versions.append(version)
+                    if removed_versions:
+                        removed_model_ids.extend(
+                            [f"{model_id}:{version}" for version in removed_versions]
+                        )
+                    if not versions:
+                        del models[model_id]
+                    elif metadata.get("active_version") not in versions:
+                        metadata["active_version"] = next(iter(versions.keys()))
                     continue
 
                 container_id = metadata.get("container_id")
@@ -117,7 +150,7 @@ class ModelRegistryService:
                     removed_model_ids.append(model_id)
 
             if removed_model_ids:
-                with path.open("w", encoding="utf-8") as file:
+                with registry_path().open("w", encoding="utf-8") as file:
                     json.dump(data, file, indent=2)
 
             return removed_model_ids
@@ -203,9 +236,13 @@ class DashboardService:
                 status_text=status.status_text,
                 status_class=status.badge_class,
                 indicator_class=status.indicator_class,
-                predict_url=build_prediction_url(model_id),
+                predict_url=build_prediction_url(
+                    model_id, version=metadata.active_version
+                ),
                 api_url=build_api_url(
-                    model_id, base_url=f"http://127.0.0.1:{metadata.port}"
+                    model_id,
+                    base_url=f"http://127.0.0.1:{metadata.port}",
+                    version=metadata.active_version,
                 ),
                 tunnel_url=metadata.tunnel_url,
                 tunnel_prediction_url=tunnel_prediction_url,

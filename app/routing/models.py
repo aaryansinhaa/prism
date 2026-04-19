@@ -56,6 +56,8 @@ async def upload_model(file: UploadFile = File(...)) -> Dict[str, Any]:
 @router.post("/upload-and-run")
 async def upload_and_run_model(
     file: UploadFile = File(...),
+    model_id: str | None = Form(None),
+    version: str | None = Form(None),
     model_name: str | None = Form(None),
     model_description: str | None = Form(None),
     expected_input_json: str | None = Form(None),
@@ -63,19 +65,27 @@ async def upload_and_run_model(
     """Upload, build, and launch model container in one step."""
     file_name = file.filename or ""
     validate_upload_extension(file_name)
+    cleaned_model_id = _clean_text(model_id)
+    cleaned_version = _clean_text(version)
     cleaned_name = _clean_text(model_name)
     cleaned_description = _clean_text(model_description)
     validated_expected_input_json = _validate_expected_input_json(expected_input_json)
 
-    upload_result = await ingest_upload_and_build(file)
+    upload_result = await ingest_upload_and_build(
+        file,
+        model_id=cleaned_model_id,
+        version=cleaned_version,
+    )
 
-    model_id = upload_result["model_id"]
+    resolved_model_id = upload_result["model_id"]
+    resolved_version = upload_result.get("version")
+    deployment_key = upload_result["deployment_key"]
     image_tag = upload_result["image_tag"]
 
     try:
         container_name, host_port, container_id = await asyncio.to_thread(
             run_model_container,
-            model_id,
+            deployment_key,
             image_tag,
         )
     except RuntimeError as exc:
@@ -90,16 +100,17 @@ async def upload_and_run_model(
 
     if enable_tunnel:
         try:
-            tunnel_url, _ = await start_tunnel(host_port, model_id)
+            tunnel_url, _ = await start_tunnel(host_port, deployment_key)
         except RuntimeError as exc:
             # Tunnel startup is not fatal - log and continue
-            print(f"Warning: Failed to start tunnel for {model_id}: {exc}")
+            print(f"Warning: Failed to start tunnel for {deployment_key}: {exc}")
 
     if _single_active_mode_enabled():
         await ContainerService.kill_all_models_async()
 
     registry_record = register_container(
-        model_id=model_id,
+        model_id=resolved_model_id,
+        version=resolved_version,
         container_id=container_id,
         port=host_port,
         name=cleaned_name,
@@ -113,6 +124,8 @@ async def upload_and_run_model(
             "container_name": container_name,
             "container_id": container_id,
             "host_port": host_port,
+            "version": resolved_version,
+            "deployment_key": deployment_key,
             "predict_url": f"http://127.0.0.1:{host_port}/predict",
             "tunnel_url": tunnel_url,
             "registry": registry_record,
@@ -125,6 +138,8 @@ async def upload_and_run_model(
 @router.post("")
 async def create_model(
     file: UploadFile = File(...),
+    model_id: str | None = Form(None),
+    version: str | None = Form(None),
     model_name: str | None = Form(None),
     model_description: str | None = Form(None),
     expected_input_json: str | None = Form(None),
@@ -132,6 +147,8 @@ async def create_model(
     """PRISM-11 create endpoint: upload, build, and run model."""
     return await upload_and_run_model(
         file=file,
+        model_id=model_id,
+        version=version,
         model_name=model_name,
         model_description=model_description,
         expected_input_json=expected_input_json,

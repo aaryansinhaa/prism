@@ -103,11 +103,24 @@ def escape_html(text: str) -> str:
     return text.replace("<", "&lt;").replace(">", "&gt;").replace("&", "&amp;")
 
 
-def build_prediction_url(model_id: str, base_url: str = "http://127.0.0.1:8000") -> str:
+def build_prediction_url(
+    model_id: str,
+    base_url: str = "http://127.0.0.1:8000",
+    version: str | None = None,
+) -> str:
     """Build prediction UI URL."""
-    return f"{base_url}/predict?model_id={model_id}"
+    url = f"{base_url}/predict?model_id={model_id}"
+    if version:
+        url += f"&version={version}"
+    return url
 
 
-def build_api_url(model_id: str, base_url: str = "http://127.0.0.1:8000") -> str:
+def build_api_url(
+    model_id: str,
+    base_url: str = "http://127.0.0.1:8000",
+    version: str | None = None,
+) -> str:
     """Build prediction API endpoint URL."""
+    if version:
+        return f"{base_url}/models/{model_id}/versions/{version}/predict"
     return f"{base_url}/models/{model_id}/predict"

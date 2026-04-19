@@ -333,6 +333,7 @@ def predict_page(
     model_name: str | None = None,
     model_description: str | None = None,
     expected_input_json: str | None = None,
+    version: str | None = None,
 ) -> str:
     hints_html, sample_json = _contract_hints(expected_input_json)
     model_meta_block = ""
@@ -379,6 +380,7 @@ def predict_page(
 
   <form hx-post=\"/predict-result\" hx-target=\"#result\" hx-indicator=\"#predictLoading\" class=\"space-y-6\">
     <input type=\"hidden\" id=\"modelIdInput\" name=\"model_id\">
+    <input type=\"hidden\" id=\"versionInput\" name=\"version\">
     <div>
       <label class=\"block text-sm font-medium text-black mb-3\">Input Data (JSON)</label>
       <textarea name=\"input_data\" id=\"inputData\" placeholder='Example: {\"age\": 25, \"salary\": 50000}' required class=\"w-full px-4 py-3 border border-black rounded-md font-mono text-sm h-32 resize-none\"></textarea>
@@ -393,32 +395,51 @@ def predict_page(
 <script>
   const urlParams = new URLSearchParams(window.location.search);
   const modelId = urlParams.get('model_id');
+  const version = urlParams.get('version');
   if (modelId) {
     document.getElementById('modelIdInput').value = modelId;
     document.getElementById('modelIdDisplay').textContent = 'Model: ' + modelId;
   } else {
     document.getElementById('modelIdDisplay').innerHTML = '<span class=\"text-red-600\">Model ID not provided.</span>';
   }
+  if (version) {
+    document.getElementById('versionInput').value = version;
+    document.getElementById('modelIdDisplay').textContent += ' (version: ' + version + ')';
+  }
 </script>"""
     )
 
 
-def prediction_result_component(prediction: Dict[str, Any], model_id: str) -> str:
+def prediction_result_component(
+    prediction: Dict[str, Any],
+    model_id: str,
+    version: str | None = None,
+) -> str:
     pretty = json.dumps(prediction, indent=2)
+    retry_url = f"/predict?model_id={model_id}"
+    if version:
+        retry_url += f"&version={version}"
     return f"""<div class=\"alert-success mb-4\">✓ Prediction completed!</div>
 <div class=\"bg-white p-6 rounded-lg border border-black\">
   <p class=\"text-black text-xs mb-2 font-medium\">Response (JSON):</p>
   <pre class=\"text-black font-mono text-sm overflow-auto max-h-48 bg-white p-3 border border-black rounded-md\">{pretty}</pre>
 </div>
 <div class=\"mt-6\">
-  <button hx-get=\"/predict?model_id={model_id}\" hx-target=\"#app-content\" hx-swap=\"innerHTML\" class=\"btn-secondary w-full\">Make Another Prediction</button>
+  <button hx-get=\"{retry_url}\" hx-target=\"#app-content\" hx-swap=\"innerHTML\" class=\"btn-secondary w-full\">Make Another Prediction</button>
 </div>"""
 
 
-def prediction_error_component(error: str, model_id: str) -> str:
+def prediction_error_component(
+    error: str,
+    model_id: str,
+    version: str | None = None,
+) -> str:
+    retry_url = f"/predict?model_id={model_id}"
+    if version:
+        retry_url += f"&version={version}"
     return f"""<div class=\"alert-error mb-4\">✗ Prediction failed: {error}</div>
 <div class=\"mt-6\">
-  <button hx-get=\"/predict?model_id={model_id}\" hx-target=\"#app-content\" hx-swap=\"innerHTML\" class=\"btn-secondary w-full\">Try Again</button>
+  <button hx-get=\"{retry_url}\" hx-target=\"#app-content\" hx-swap=\"innerHTML\" class=\"btn-secondary w-full\">Try Again</button>
 </div>"""
 
 

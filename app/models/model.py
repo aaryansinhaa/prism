@@ -13,6 +13,9 @@ class ModelMetadata:
     model_id: str
     container_id: str
     port: int
+    version: Optional[str] = None
+    active_version: Optional[str] = None
+    available_versions: Optional[list[str]] = None
     name: Optional[str] = None
     description: Optional[str] = None
     expected_input_json: Optional[str] = None
@@ -25,6 +28,12 @@ class ModelMetadata:
             "container_id": self.container_id,
             "port": self.port,
         }
+        if self.version:
+            result["version"] = self.version
+        if self.active_version:
+            result["active_version"] = self.active_version
+        if self.available_versions:
+            result["available_versions"] = self.available_versions
         if self.name:
             result["name"] = self.name
         if self.description:

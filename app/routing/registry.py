@@ -6,7 +6,7 @@ from typing import Any, Dict
 from fastapi import APIRouter, HTTPException
 from starlette import status
 
-from app.registry.container_registry import registry_path
+from app.registry.container_registry import registry_path, resolve_model_version_entry
 from app.services.dashboard_service import ModelRegistryService
 
 router = APIRouter(prefix="/registry", tags=["registry"])
@@ -33,15 +33,47 @@ def list_registry() -> Dict[str, Any]:
 def get_model_registry(model_id: str) -> Dict[str, Any]:
     """Get registry entry for a specific model."""
     registry = _load_registry()
-    models = registry.get("models", {})
-
-    if model_id not in models:
+    try:
+        model_entry, resolved_version, active_version = resolve_model_version_entry(
+            model_id,
+            registry=registry,
+        )
+    except KeyError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Model {model_id} not found in registry",
         )
 
-    return models[model_id]
+    response = dict(model_entry)
+    response["model_id"] = model_id
+    response["version"] = resolved_version
+    if active_version:
+        response["active_version"] = active_version
+    return response
+
+
+@router.get("/{model_id}/versions/{version}")
+def get_model_registry_version(model_id: str, version: str) -> Dict[str, Any]:
+    """Get a specific versioned registry entry for a model."""
+    registry = _load_registry()
+    try:
+        model_entry, resolved_version, active_version = resolve_model_version_entry(
+            model_id,
+            version=version,
+            registry=registry,
+        )
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model {model_id} version {version} not found in registry",
+        )
+
+    response = dict(model_entry)
+    response["model_id"] = model_id
+    response["version"] = resolved_version
+    if active_version:
+        response["active_version"] = active_version
+    return response
 
 
 @router.post("/prune-stale")

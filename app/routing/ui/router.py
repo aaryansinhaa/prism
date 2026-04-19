@@ -15,7 +15,11 @@ from app.core import run_model_container
 from app.core.input_contract import validate_payload_against_expected_input_json
 from app.core.tunnel import start_tunnel
 from app.models import ingest_upload_and_build, validate_upload_extension
-from app.registry.container_registry import register_container, registry_path
+from app.registry.container_registry import (
+    register_container,
+    registry_path,
+    resolve_model_version_entry,
+)
 from app.routing.ui.templates import (
     base_layout,
     dashboard_page_with_cards,
@@ -198,6 +202,8 @@ async def kill_all_models() -> str:
 @router.post("/api/upload-and-run-ui", response_class=HTMLResponse)
 async def upload_and_run_ui(
     file: UploadFile = File(...),
+    model_id: str | None = Form(None),
+    version: str | None = Form(None),
     model_name: str | None = Form(None),
     model_description: str | None = Form(None),
     expected_input_json: str | None = Form(None),
@@ -207,19 +213,27 @@ async def upload_and_run_ui(
         file_name = file.filename or ""
         validate_upload_extension(file_name)
 
+        cleaned_model_id = _clean_text(model_id)
+        cleaned_version = _clean_text(version)
         cleaned_name = _clean_text(model_name)
         cleaned_description = _clean_text(model_description)
         validated_expected_input_json = _validate_expected_input_json(
             expected_input_json
         )
 
-        upload_result = await ingest_upload_and_build(file)
+        upload_result = await ingest_upload_and_build(
+            file,
+            model_id=cleaned_model_id,
+            version=cleaned_version,
+        )
         model_id = upload_result["model_id"]
+        version = upload_result.get("version")
+        deployment_key = upload_result["deployment_key"]
         image_tag = upload_result["image_tag"]
 
         container_name, host_port, container_id = await asyncio.to_thread(
             run_model_container,
-            model_id,
+            deployment_key,
             image_tag,
         )
 
@@ -229,19 +243,20 @@ async def upload_and_run_ui(
         if enable_tunnel:
             try:
                 # Tunnel the model container's dedicated prediction port
-                tunnel_url, _ = await start_tunnel(host_port, model_id)
+                tunnel_url, _ = await start_tunnel(host_port, deployment_key)
                 if tunnel_url:
                     tunnel_prediction_url = f"{tunnel_url.rstrip('/')}/predict"
                     qr_data_uri = generate_qr_data_uri(tunnel_prediction_url)
             except RuntimeError as exc:
                 tunnel_warning = str(exc)
-                print(f"Warning: Failed to start tunnel for {model_id}: {exc}")
+                print(f"Warning: Failed to start tunnel for {deployment_key}: {exc}")
 
         if _single_active_mode_enabled():
             await ContainerService.kill_all_models_async()
 
         register_container(
             model_id=model_id,
+            version=version,
             container_id=container_id,
             port=host_port,
             name=cleaned_name,
@@ -271,7 +286,7 @@ async def upload_and_run_ui(
 
 
 @router.get("/predict", response_class=HTMLResponse)
-async def predict_ui(model_id: str | None = None) -> str:
+async def predict_ui(model_id: str | None = None, version: str | None = None) -> str:
     model_name: str | None = None
     model_description: str | None = None
     expected_input_json: str | None = None
@@ -282,12 +297,17 @@ async def predict_ui(model_id: str | None = None) -> str:
             try:
                 with path.open("r", encoding="utf-8") as file:
                     data: Dict[str, Any] = json.load(file)
-                model_entry = data.get("models", {}).get(model_id, {})
+                model_entry, resolved_version, _ = resolve_model_version_entry(
+                    model_id,
+                    version=version,
+                    registry=data,
+                )
                 if isinstance(model_entry, dict):
                     model_name = model_entry.get("name")
                     model_description = model_entry.get("description")
                     expected_input_json = model_entry.get("expected_input_json")
-            except (OSError, json.JSONDecodeError):
+                    version = resolved_version
+            except (OSError, json.JSONDecodeError, KeyError):
                 pass
 
     return base_layout(
@@ -296,6 +316,7 @@ async def predict_ui(model_id: str | None = None) -> str:
             model_name=model_name,
             model_description=model_description,
             expected_input_json=expected_input_json,
+            version=version,
         ),
         show_sidebar=False,
     )
@@ -304,26 +325,37 @@ async def predict_ui(model_id: str | None = None) -> str:
 @router.post("/predict-result", response_class=HTMLResponse)
 async def predict_result(
     model_id: str = Form(...),
+    version: str | None = Form(None),
     input_data: str = Form(...),
 ) -> str:
     try:
         payload = json.loads(input_data)
     except json.JSONDecodeError as exc:
-        return prediction_error_component(f"Invalid JSON: {exc}", model_id)
+        return prediction_error_component(f"Invalid JSON: {exc}", model_id, version)
 
     path = registry_path()
     if not path.exists():
-        return prediction_error_component("Model registry not found", model_id)
+        return prediction_error_component("Model registry not found", model_id, version)
 
     try:
         with path.open("r", encoding="utf-8") as file:
             data: Dict[str, Any] = json.load(file)
     except (OSError, json.JSONDecodeError):
-        return prediction_error_component("Failed to read model registry", model_id)
+        return prediction_error_component("Failed to read model registry", model_id, version)
 
-    models = data.get("models", {})
-    model_entry = models.get(model_id)
-    if not model_entry:
+    try:
+        model_entry, resolved_version, _ = resolve_model_version_entry(
+            model_id,
+            version=version,
+            registry=data,
+        )
+    except KeyError:
+        if version:
+            return prediction_error_component(
+                f"Model not found: {model_id} version {version}",
+                model_id,
+                version,
+            )
         return prediction_error_component(f"Model not found: {model_id}", model_id)
 
     is_valid, error = validate_payload_against_expected_input_json(
@@ -334,11 +366,16 @@ async def predict_result(
         return prediction_error_component(
             f"Input does not match expected format: {error}",
             model_id,
+            resolved_version,
         )
 
     port = model_entry.get("port")
     if port is None:
-        return prediction_error_component("Model port not found in registry", model_id)
+        return prediction_error_component(
+            "Model port not found in registry",
+            model_id,
+            resolved_version,
+        )
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -349,9 +386,12 @@ async def predict_result(
             return prediction_error_component(
                 f"Server returned {response.status_code}: {response.text}",
                 model_id,
+                resolved_version,
             )
-        return prediction_result_component(response.json(), model_id)
+        return prediction_result_component(response.json(), model_id, resolved_version)
     except httpx.RequestError as exc:
-        return prediction_error_component(f"Cannot connect to model: {exc}", model_id)
+        return prediction_error_component(
+            f"Cannot connect to model: {exc}", model_id, resolved_version
+        )
     except Exception as exc:
-        return prediction_error_component(str(exc), model_id)
+        return prediction_error_component(str(exc), model_id, resolved_version)

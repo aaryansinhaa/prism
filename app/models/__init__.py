@@ -80,14 +80,25 @@ def validate_upload_extension(file_name: str) -> None:
         )
 
 
-async def ingest_upload_and_build(file: UploadFile) -> dict[str, Any]:
+def _deployment_key(model_id: str, version: str | None) -> str:
+    if version:
+        return f"{model_id}__{version}"
+    return model_id
+
+
+async def ingest_upload_and_build(
+    file: UploadFile,
+    model_id: str | None = None,
+    version: str | None = None,
+) -> dict[str, Any]:
     """Handle model upload and Docker image build."""
     import asyncio
 
     from app.core import build_model_image
 
-    model_id = uuid.uuid4().hex[:12]
-    model_dir = upload_root() / model_id
+    resolved_model_id = model_id or uuid.uuid4().hex[:12]
+    deployment_key = _deployment_key(resolved_model_id, version)
+    model_dir = upload_root() / deployment_key
     model_dir.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -95,7 +106,7 @@ async def ingest_upload_and_build(file: UploadFile) -> dict[str, Any]:
         dockerfile_path = prepare_model_build_context(model_path, model_dir)
         image_tag, build_output = await asyncio.to_thread(
             build_model_image,
-            model_id,
+            deployment_key,
             model_dir,
         )
     except RuntimeError as exc:
@@ -110,7 +121,9 @@ async def ingest_upload_and_build(file: UploadFile) -> dict[str, Any]:
         await file.close()
 
     return {
-        "model_id": model_id,
+        "model_id": resolved_model_id,
+        "version": version,
+        "deployment_key": deployment_key,
         "image_tag": image_tag,
         "model_path": str(model_path),
         "dockerfile_path": str(dockerfile_path),
