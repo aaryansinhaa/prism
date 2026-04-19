@@ -1,0 +1,128 @@
+{
+  "runtime": [
+    {
+      "name": "runtime.adapters.sklearn.predict",
+      "operations": 1000,
+      "total_seconds": 0.12362566994852386,
+      "avg_ms": 0.12362566994852386,
+      "p95_ms": 0.14132090582279488,
+      "throughput_rps": 8088.934930879543
+    },
+    {
+      "name": "runtime.adapters.onnx.predict",
+      "operations": 1000,
+      "total_seconds": 0.06101027110707946,
+      "avg_ms": 0.06101027110707946,
+      "p95_ms": 0.08453834816464223,
+      "throughput_rps": 16390.682779378156
+    }
+  ],
+  "core": [
+    {
+      "name": "app.core.input_contract.validate_payload",
+      "operations": 1000,
+      "total_seconds": 0.04693713950109668,
+      "avg_ms": 0.04693713950109668,
+      "p95_ms": 0.06385489177773707,
+      "throughput_rps": 21305.09039598877
+    },
+    {
+      "name": "app.core.access_control.validate_api_key",
+      "operations": 1000,
+      "total_seconds": 0.010528030223213136,
+      "avg_ms": 0.010528030223213136,
+      "p95_ms": 0.011864548287121577,
+      "throughput_rps": 94984.52975515887
+    },
+    {
+      "name": "app.core.access_control.enforce_rate_limit",
+      "operations": 1000,
+      "total_seconds": 0.008814820073894225,
+      "avg_ms": 0.008814820073894225,
+      "p95_ms": 0.014493848721031094,
+      "throughput_rps": 113445.31046771763
+    },
+    {
+      "name": "app.batching.request_batcher.forward",
+      "operations": 1000,
+      "total_seconds": 0.06222058132698294,
+      "avg_ms": 0.06222058132698294,
+      "p95_ms": 0.0736082569346763,
+      "throughput_rps": 16071.852410776724
+    }
+  ],
+  "routes": [
+    {
+      "name": "app.routing.health.read_root",
+      "operations": 1000,
+      "total_seconds": 92.96922356283176,
+      "avg_ms": 92.96922356283176,
+      "p95_ms": 110.31314900174038,
+      "throughput_rps": 10.756247730994183
+    },
+    {
+      "name": "app.routing.health.monitor_health",
+      "operations": 1000,
+      "total_seconds": 5.18358715994691,
+      "avg_ms": 5.18358715994691,
+      "p95_ms": 6.030050187837332,
+      "throughput_rps": 192.91659793567393
+    },
+    {
+      "name": "app.routing.registry.list_registry",
+      "operations": 1000,
+      "total_seconds": 5.71591984074621,
+      "avg_ms": 5.71591984074621,
+      "p95_ms": 6.674023203959223,
+      "throughput_rps": 174.9499691845662
+    },
+    {
+      "name": "app.routing.inference.predict_model (batching=off)",
+      "operations": 300,
+      "total_seconds": 63.464685196071514,
+      "avg_ms": 211.54895065357172,
+      "p95_ms": 239.41676620015642,
+      "throughput_rps": 4.727038337512625
+    },
+    {
+      "name": "app.routing.inference.predict_model (batching=on)",
+      "operations": 300,
+      "total_seconds": 36.60692000591371,
+      "avg_ms": 122.02306668637902,
+      "p95_ms": 156.6822817978391,
+      "throughput_rps": 8.195171840502729
+    }
+  ],
+  "batching_comparison": {
+    "baseline": {
+      "avg_latency_ms": 211.54895065357172,
+      "p95_latency_ms": 239.41676620015642,
+      "throughput_rps": 4.727038337512625
+    },
+    "batched": {
+      "avg_latency_ms": 122.02306668637902,
+      "p95_latency_ms": 156.6822817978391,
+      "throughput_rps": 8.195171840502729
+    },
+    "improvement": {
+      "avg_latency_reduction_pct": 42.31922857126268,
+      "throughput_increase_pct": 73.36800032840523
+    },
+    "burst": {
+      "requests": 300,
+      "concurrency": 60,
+      "simulated_container_latency_ms": 2.0,
+      "simulated_container_per_row_ms": 0.05
+    }
+  },
+  "meta": {
+    "iterations": 1000,
+    "burst_requests": 300,
+    "burst_concurrency": 60,
+    "simulated_container_latency_ms": 2.0,
+    "simulated_container_per_row_ms": 0.05,
+    "python_version": "3.13.11 (main, Dec  7 2025, 13:01:45) [GCC 15.2.1 20251112]",
+    "numpy_version": "2.4.2",
+    "onnxruntime_version": "1.24.2"
+  }
+}

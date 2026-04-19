@@ -7,6 +7,7 @@ from typing import Any, Dict
 from fastapi import APIRouter, Body, HTTPException, Request
 from starlette import status
 
+from app.batching.request_batcher import request_batcher
 from app.core.access_control import enforce_rate_limit, log_access, validate_api_key
 from app.core.input_contract import validate_payload_against_expected_input_json
 from app.registry.container_registry import registry_path
@@ -79,11 +80,9 @@ async def predict_model(
 
         container_url = f"http://127.0.0.1:{port}/predict"
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(container_url, json=payload)
-            response.raise_for_status()
-            response_status = status.HTTP_200_OK
-            return response.json()
+        response = await request_batcher.forward(container_url, payload)
+        response_status = status.HTTP_200_OK
+        return response
     except httpx.ConnectError:
         response_status = status.HTTP_503_SERVICE_UNAVAILABLE
         raise HTTPException(

@@ -239,6 +239,7 @@ Environment variables commonly used in PRISM:
 | `PRISM_API_KEYS` | unset | Comma-separated API keys for protected inference |
 | `PRISM_RATE_LIMIT_REQUESTS` | `60` | Requests per rate-limit window |
 | `PRISM_RATE_LIMIT_WINDOW_SECONDS` | `60` | Rate-limit window duration |
+| `PRISM_BATCH_WINDOW_MS` | `50` | Request batching window for `/models/{model_id}/predict` |
 | `PRISM_TUNNEL_START_TIMEOUT` | `30` | Timeout for tunnel worker startup |
 
 Example:
@@ -247,6 +248,7 @@ Example:
 export PRISM_API_KEYS="key-one,key-two"
 export PRISM_RATE_LIMIT_REQUESTS="120"
 export PRISM_RATE_LIMIT_WINDOW_SECONDS="60"
+export PRISM_BATCH_WINDOW_MS="50"
 export NGROK_AUTHTOKEN="<your-token>"
 ```
 
