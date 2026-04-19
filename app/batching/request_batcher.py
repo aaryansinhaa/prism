@@ -22,7 +22,9 @@ class RequestBatcher:
     def __init__(
         self,
         batch_window_ms: int = 50,
-        forwarder: Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any]]] | None = None,
+        forwarder: (
+            Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any]]] | None
+        ) = None,
     ) -> None:
         self._batch_window_seconds = max(0.0, batch_window_ms / 1000.0)
         self._forwarder = forwarder or self._default_forwarder
@@ -31,7 +33,9 @@ class RequestBatcher:
         self._flush_tasks: dict[str, asyncio.Task[None]] = {}
 
     @staticmethod
-    async def _default_forwarder(container_url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def _default_forwarder(
+        container_url: str, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(container_url, json=payload)
             response.raise_for_status()
@@ -83,7 +87,9 @@ class RequestBatcher:
 
             task = self._flush_tasks.get(key)
             if task is None or task.done():
-                self._flush_tasks[key] = asyncio.create_task(self._flush_after_window(key))
+                self._flush_tasks[key] = asyncio.create_task(
+                    self._flush_after_window(key)
+                )
 
         return await future
 
@@ -99,7 +105,9 @@ class RequestBatcher:
 
         await self._dispatch_batch(key, batch)
 
-    async def _dispatch_batch(self, container_url: str, batch: list[_QueuedRequest]) -> None:
+    async def _dispatch_batch(
+        self, container_url: str, batch: list[_QueuedRequest]
+    ) -> None:
         try:
             batched_rows: list[list[float | int]] = []
             row_counts: list[int] = []
@@ -110,12 +118,16 @@ class RequestBatcher:
                 if expected_width is None:
                     expected_width = width
                 elif expected_width != width:
-                    raise ValueError("Cannot batch requests with mismatched input width")
+                    raise ValueError(
+                        "Cannot batch requests with mismatched input width"
+                    )
 
                 batched_rows.extend(rows)
                 row_counts.append(len(rows))
 
-            response_json = await self._forwarder(container_url, {"input": batched_rows})
+            response_json = await self._forwarder(
+                container_url, {"input": batched_rows}
+            )
             if not isinstance(response_json, dict):
                 raise ValueError("Container response must be a JSON object")
 
@@ -140,7 +152,9 @@ class RequestBatcher:
                 if not item.future.done():
                     item.future.set_exception(exc)
 
-    async def forward(self, container_url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def forward(
+        self, container_url: str, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Forward a prediction payload, batching when payloads are compatible."""
         try:
             self._extract_rows(payload)

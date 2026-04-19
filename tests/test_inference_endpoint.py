@@ -76,7 +76,9 @@ def test_inference_forwards_to_container(monkeypatch, tmp_path):
         async def __aexit__(self, *args):
             pass
 
-    monkeypatch.setattr("app.batching.request_batcher.httpx.AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr(
+        "app.batching.request_batcher.httpx.AsyncClient", FakeAsyncClient
+    )
 
     with TestClient(app) as client:
         response = client.post(
@@ -125,7 +127,9 @@ def test_inference_handles_connection_error(monkeypatch, tmp_path):
         async def __aexit__(self, *args):
             pass
 
-    monkeypatch.setattr("app.batching.request_batcher.httpx.AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr(
+        "app.batching.request_batcher.httpx.AsyncClient", FakeAsyncClient
+    )
 
     with TestClient(app) as client:
         response = client.post(
@@ -202,7 +206,9 @@ def test_inference_rate_limit(monkeypatch, tmp_path):
         async def __aexit__(self, *args):
             pass
 
-    monkeypatch.setattr("app.batching.request_batcher.httpx.AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr(
+        "app.batching.request_batcher.httpx.AsyncClient", FakeAsyncClient
+    )
 
     with TestClient(app) as client:
         first = client.post(
@@ -287,7 +293,9 @@ def test_inference_rejects_payload_not_matching_expected_contract(
         async def __aexit__(self, *args):
             pass
 
-    monkeypatch.setattr("app.batching.request_batcher.httpx.AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr(
+        "app.batching.request_batcher.httpx.AsyncClient", FakeAsyncClient
+    )
 
     with TestClient(app) as client:
         response = client.post(

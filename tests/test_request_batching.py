@@ -8,7 +8,9 @@ from app.batching.request_batcher import RequestBatcher
 def test_request_batcher_collects_and_splits_predictions() -> None:
     calls: list[tuple[str, dict[str, object]]] = []
 
-    async def fake_forwarder(container_url: str, payload: dict[str, object]) -> dict[str, object]:
+    async def fake_forwarder(
+        container_url: str, payload: dict[str, object]
+    ) -> dict[str, object]:
         calls.append((container_url, payload))
         rows = payload["input"]
         return {
@@ -46,7 +48,9 @@ def test_request_batcher_collects_and_splits_predictions() -> None:
 def test_request_batcher_passthrough_for_non_batchable_payload() -> None:
     calls: list[tuple[str, dict[str, object]]] = []
 
-    async def fake_forwarder(container_url: str, payload: dict[str, object]) -> dict[str, object]:
+    async def fake_forwarder(
+        container_url: str, payload: dict[str, object]
+    ) -> dict[str, object]:
         calls.append((container_url, payload))
         return {"ok": True}
 

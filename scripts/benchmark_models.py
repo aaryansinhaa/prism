@@ -128,7 +128,9 @@ def benchmark_runtime_adapters(iterations: int) -> list[Summary]:
     summary.name = "runtime.adapters.sklearn.predict"
     results.append(summary)
 
-    session = ort.InferenceSession(onnx_path.as_posix(), providers=["CPUExecutionProvider"])
+    session = ort.InferenceSession(
+        onnx_path.as_posix(), providers=["CPUExecutionProvider"]
+    )
     input_name = session.get_inputs()[0].name
     onnx_features = _infer_onnx_feature_count(session, fallback=1)
     onnx_sample = np.random.rand(1, onnx_features).astype(np.float32)
@@ -153,7 +155,8 @@ def _make_request(headers: dict[str, str]) -> Request:
         "raw_path": b"/models/test/predict",
         "query_string": b"",
         "headers": [
-            (k.lower().encode("latin-1"), v.encode("latin-1")) for k, v in headers.items()
+            (k.lower().encode("latin-1"), v.encode("latin-1"))
+            for k, v in headers.items()
         ],
         "client": ("127.0.0.1", 8080),
         "server": ("127.0.0.1", 8000),
@@ -192,7 +195,9 @@ def benchmark_core_modules(iterations: int) -> list[Summary]:
     payload = {"input": [[1.0, 2.0], [3.0, 4.0]]}
 
     def input_contract_validate():
-        is_valid, error = validate_payload_against_expected_input_json(schema_contract, payload)
+        is_valid, error = validate_payload_against_expected_input_json(
+            schema_contract, payload
+        )
         if not is_valid:
             raise RuntimeError(f"unexpected validation failure: {error}")
 
@@ -233,7 +238,9 @@ def benchmark_core_modules(iterations: int) -> list[Summary]:
     else:
         os.environ["PRISM_RATE_LIMIT_WINDOW_SECONDS"] = previous_window
 
-    async def fake_forwarder(_url: str, payload_value: Dict[str, Any]) -> Dict[str, Any]:
+    async def fake_forwarder(
+        _url: str, payload_value: Dict[str, Any]
+    ) -> Dict[str, Any]:
         rows = payload_value["input"]
         return {"predictions": [1.0 for _ in rows]}
 
@@ -252,7 +259,9 @@ class _ForwardNoBatch:
     def __init__(self, forwarder) -> None:
         self._forwarder = forwarder
 
-    async def forward(self, container_url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def forward(
+        self, container_url: str, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
         return await self._forwarder(container_url, payload)
 
 
@@ -357,7 +366,9 @@ def benchmark_api_routes(
 
         container_lock = asyncio.Lock()
 
-        async def simulated_container_forward(_url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        async def simulated_container_forward(
+            _url: str, payload: Dict[str, Any]
+        ) -> Dict[str, Any]:
             rows = payload.get("input", [])
             row_count = len(rows)
             async with container_lock:
@@ -384,7 +395,9 @@ def benchmark_api_routes(
         no_batch_summary.name = "app.routing.inference.predict_model (batching=off)"
         results.append(no_batch_summary)
 
-        batched = RequestBatcher(batch_window_ms=50, forwarder=simulated_container_forward)
+        batched = RequestBatcher(
+            batch_window_ms=50, forwarder=simulated_container_forward
+        )
         inference_module.request_batcher = batched
         batch_summary = asyncio.run(
             _benchmark_inference_burst(
@@ -456,7 +469,12 @@ def _print_summaries(summaries: Iterable[Summary]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--iterations", type=int, default=1000, help="Iterations per sync micro-benchmark")
+    parser.add_argument(
+        "--iterations",
+        type=int,
+        default=1000,
+        help="Iterations per sync micro-benchmark",
+    )
     parser.add_argument(
         "--burst-requests",
         type=int,
