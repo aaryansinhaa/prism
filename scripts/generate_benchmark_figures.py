@@ -55,7 +55,9 @@ def _section_rows(payload: dict[str, Any], section: str) -> list[dict[str, Any]]
     return [item for item in raw if isinstance(item, dict)]
 
 
-def _plot_module_metric_grid(report: Report, metric_key: str, title: str, out_file: Path) -> None:
+def _plot_module_metric_grid(
+    report: Report, metric_key: str, title: str, out_file: Path
+) -> None:
     sections = ["runtime", "core", "routes"]
     colors = {
         "runtime": "#4C78A8",
@@ -153,8 +155,12 @@ def _plot_improvement_across_reports(reports: list[Report], out_file: Path) -> N
             continue
 
         labels.append(report.name)
-        latency_reduction.append(float(improvement.get("avg_latency_reduction_pct", 0.0) or 0.0))
-        throughput_increase.append(float(improvement.get("throughput_increase_pct", 0.0) or 0.0))
+        latency_reduction.append(
+            float(improvement.get("avg_latency_reduction_pct", 0.0) or 0.0)
+        )
+        throughput_increase.append(
+            float(improvement.get("throughput_increase_pct", 0.0) or 0.0)
+        )
 
     if not labels:
         return
@@ -163,20 +169,46 @@ def _plot_improvement_across_reports(reports: list[Report], out_file: Path) -> N
     width = 0.38
 
     fig, axis = plt.subplots(figsize=(11, 5), constrained_layout=True)
-    axis.bar([i - width / 2 for i in x], latency_reduction, width=width, label="Latency Reduction %", color="#4C78A8")
-    axis.bar([i + width / 2 for i in x], throughput_increase, width=width, label="Throughput Increase %", color="#59A14F")
+    axis.bar(
+        [i - width / 2 for i in x],
+        latency_reduction,
+        width=width,
+        label="Latency Reduction %",
+        color="#4C78A8",
+    )
+    axis.bar(
+        [i + width / 2 for i in x],
+        throughput_increase,
+        width=width,
+        label="Throughput Increase %",
+        color="#59A14F",
+    )
 
     axis.axhline(0, color="black", linewidth=1)
     axis.set_xticks(list(x), labels, rotation=10)
     axis.set_ylabel("Percent (%)")
-    axis.set_title("Batching Improvement Across Benchmark Profiles", fontsize=13, fontweight="bold")
+    axis.set_title(
+        "Batching Improvement Across Benchmark Profiles", fontsize=13, fontweight="bold"
+    )
     axis.legend()
     axis.grid(axis="y", linestyle="--", alpha=0.3)
 
     for i, value in enumerate(latency_reduction):
-        axis.text(i - width / 2, value, f" {value:.1f}", va="bottom" if value >= 0 else "top", fontsize=8)
+        axis.text(
+            i - width / 2,
+            value,
+            f" {value:.1f}",
+            va="bottom" if value >= 0 else "top",
+            fontsize=8,
+        )
     for i, value in enumerate(throughput_increase):
-        axis.text(i + width / 2, value, f" {value:.1f}", va="bottom" if value >= 0 else "top", fontsize=8)
+        axis.text(
+            i + width / 2,
+            value,
+            f" {value:.1f}",
+            va="bottom" if value >= 0 else "top",
+            fontsize=8,
+        )
 
     out_file.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_file, dpi=180, bbox_inches="tight")
@@ -219,7 +251,9 @@ def main() -> None:
     if not reports:
         raise SystemExit(f"No benchmark JSON files found in: {args.input_dir}")
 
-    primary = next((item for item in reports if item.name == args.primary_report), reports[0])
+    primary = next(
+        (item for item in reports if item.name == args.primary_report), reports[0]
+    )
 
     _plot_module_metric_grid(
         report=primary,
@@ -233,8 +267,12 @@ def main() -> None:
         title="Throughput by Module",
         out_file=args.output_dir / "module_throughput.png",
     )
-    _plot_batching_comparison(primary, args.output_dir / f"batching_comparison_{primary.name}.png")
-    _plot_improvement_across_reports(reports, args.output_dir / "batching_improvement_across_reports.png")
+    _plot_batching_comparison(
+        primary, args.output_dir / f"batching_comparison_{primary.name}.png"
+    )
+    _plot_improvement_across_reports(
+        reports, args.output_dir / "batching_improvement_across_reports.png"
+    )
 
     print(f"Generated benchmark figures in: {args.output_dir}")
 
