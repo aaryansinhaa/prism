@@ -225,7 +225,9 @@ class DashboardService:
             status = get_container_status(metadata.container_id)
             tunnel_prediction_url = None
             if metadata.tunnel_url:
-                tunnel_prediction_url = f"{metadata.tunnel_url.rstrip('/')}/predict"
+                tunnel_prediction_url = (
+                    f"{metadata.tunnel_url.rstrip('/')}/predict?model_id={model_id}"
+                )
             card = ModelCardDTO(
                 model_id=model_id,
                 model_name=metadata.name or model_id,

@@ -101,4 +101,25 @@ Interpretation:
 ## 6. Artifacts
 
 - Latest JSON benchmark report: `docs/benchmarks/latest.json`
+- Alternate profile report: `docs/benchmarks/latest-high-latency.json`
+- Generated figures:
+  - `docs/benchmarks/figures/module_avg_latency.png`
+  - `docs/benchmarks/figures/module_throughput.png`
+  - `docs/benchmarks/figures/batching_comparison_latest.png`
+  - `docs/benchmarks/figures/batching_improvement_across_reports.png`
+
+### Regenerate figures
+
+```bash
+poetry run python scripts/generate_benchmark_figures.py
+```
+
+Optional arguments:
+
+```bash
+poetry run python scripts/generate_benchmark_figures.py \
+  --input-dir docs/benchmarks \
+  --output-dir docs/benchmarks/figures \
+  --primary-report latest
+```
 

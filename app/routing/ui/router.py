@@ -69,6 +69,14 @@ def _validate_expected_input_json(raw_value: str | None) -> str | None:
     return json.dumps(parsed, ensure_ascii=False)
 
 
+def _public_app_port() -> int:
+    raw_port = os.environ.get("PRISM_PUBLIC_APP_PORT", "8000")
+    try:
+        return int(raw_port)
+    except (TypeError, ValueError):
+        return 8000
+
+
 @router.get("/", response_class=HTMLResponse)
 async def dashboard() -> str:
     """Render main dashboard with all deployed models."""
@@ -242,10 +250,12 @@ async def upload_and_run_ui(
         qr_data_uri = None
         if enable_tunnel:
             try:
-                # Tunnel the model container's dedicated prediction port
-                tunnel_url, _ = await start_tunnel(host_port, deployment_key)
+                # Tunnel the main PRISM app so public URL matches local UI path format
+                tunnel_url, _ = await start_tunnel(_public_app_port(), deployment_key)
                 if tunnel_url:
-                    tunnel_prediction_url = f"{tunnel_url.rstrip('/')}/predict"
+                    tunnel_prediction_url = (
+                        f"{tunnel_url.rstrip('/')}/predict?model_id={model_id}"
+                    )
                     qr_data_uri = generate_qr_data_uri(tunnel_prediction_url)
             except RuntimeError as exc:
                 tunnel_warning = str(exc)

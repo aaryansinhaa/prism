@@ -277,6 +277,13 @@ curl -X POST http://127.0.0.1:8000/models/<model_id>/predict \
 
 ## Development Commands
 
+Kill tunnels if any running before:
+
+```bash
+pkill -f "app.core.tunnel_worker" || true
+rm -rf /tmp/prism/tunnels
+```
+
 Run lint and format:
 
 ```bash

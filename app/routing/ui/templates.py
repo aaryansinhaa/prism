@@ -179,8 +179,7 @@ def upload_success_response(
     api_url = f"http://127.0.0.1:{port}/predict"
     public_block = ""
     if tunnel_url:
-        # Tunnel forwards model container port; prediction path is /predict
-        tunnel_endpoint = f"{tunnel_url.rstrip('/')}/predict"
+        tunnel_endpoint = f"{tunnel_url.rstrip('/')}/predict?model_id={model_id}"
         qr_for_tunnel = ""
         if qr_data_uri:
             qr_for_tunnel = f"""
@@ -190,12 +189,12 @@ def upload_success_response(
 """
         public_block = f"""
     <div>
-      <p class=\"text-sm font-medium text-black mb-2\">Public Prediction API URL 🌐</p>
+      <p class=\"text-sm font-medium text-black mb-2\">Public Prediction URL 🌐</p>
       <div class=\"flex gap-2 items-center\">
         <code class=\"flex-1 bg-white p-3 rounded border border-black text-sm font-mono text-black overflow-auto\">{tunnel_endpoint}</code>
         <button type=\"button\" class=\"btn-secondary whitespace-nowrap\" onclick=\"copyToClipboard('{tunnel_endpoint}', this)\">Copy</button>
       </div>
-      <p class=\"text-xs text-gray-600 mt-2\">Share this URL for direct prediction requests.</p>
+      <p class=\"text-xs text-gray-600 mt-2\">Share this URL for the same prediction page flow as local UI.</p>
       {qr_for_tunnel}
     </div>
 """

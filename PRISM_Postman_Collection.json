@@ -1,0 +1,204 @@
+{
+  "info": {
+    "name": "PRISM - Predictive Runtime and Inference Serving Module",
+    "description": "Complete API collection for PRISM model serving platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Service Identity",
+          "request": {
+            "method": "GET",
+            "url": "http://127.0.0.1:8000/",
+            "description": "Get service identity and basic info"
+          }
+        },
+        {
+          "name": "Health Monitor Status",
+          "request": {
+            "method": "GET",
+            "url": "http://127.0.0.1:8000/health/monitor",
+            "description": "Get background health monitor status and metrics"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Model Lifecycle",
+      "item": [
+        {
+          "name": "Upload & Deploy Model (API)",
+          "request": {
+            "method": "POST",
+            "url": "http://127.0.0.1:8000/models/upload-and-run",
+            "description": "Upload, build, and deploy model container in one step. Use form-data: file, model_name, model_description, expected_input_json"
+          }
+        },
+        {
+          "name": "Upload Model (Build Only)",
+          "request": {
+            "method": "POST",
+            "url": "http://127.0.0.1:8000/models/upload",
+            "description": "Upload and build Docker image without launching container. Use form-data: file"
+          }
+        },
+        {
+          "name": "List All Models",
+          "request": {
+            "method": "GET",
+            "url": "http://127.0.0.1:8000/models",
+            "description": "Get all deployed models and their metadata"
+          }
+        },
+        {
+          "name": "Get Model Details",
+          "request": {
+            "method": "GET",
+            "url": "http://127.0.0.1:8000/models/{{model_id}}",
+            "description": "Get metadata for specific model. Replace {{model_id}} with actual model ID"
+          }
+        },
+        {
+          "name": "Delete Model",
+          "request": {
+            "method": "DELETE",
+            "url": "http://127.0.0.1:8000/models/{{model_id}}",
+            "description": "Stop container and delete registry entry. Replace {{model_id}} with actual model ID"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Predictions",
+      "item": [
+        {
+          "name": "Predict (Single Sample)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"input\": [5.2]}"
+            },
+            "url": "http://127.0.0.1:8000/models/{{model_id}}/predict",
+            "description": "Make prediction on deployed model. For linear regression: single numeric value per sample."
+          }
+        },
+        {
+          "name": "Predict (Batch)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"input\": [5.2, 7.1, 9.0, 3.5]}"
+            },
+            "url": "http://127.0.0.1:8000/models/{{model_id}}/predict",
+            "description": "Make batch predictions. Multiple samples sent as array."
+          }
+        },
+        {
+          "name": "Predict (Versioned)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"input\": [5.2]}"
+            },
+            "url": "http://127.0.0.1:8000/models/{{model_id}}/versions/{{version}}/predict",
+            "description": "Make prediction on specific model version."
+          }
+        },
+        {
+          "name": "Load Balancer Health",
+          "request": {
+            "method": "GET",
+            "url": "http://127.0.0.1:8000/models/{{model_id}}/load-balancer/health",
+            "description": "Get load balancer health status for model instances"
+          }
+        },
+        {
+          "name": "List Model Instances",
+          "request": {
+            "method": "GET",
+            "url": "http://127.0.0.1:8000/models/{{model_id}}/instances",
+            "description": "List all running instances for a model"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Registry",
+      "item": [
+        {
+          "name": "List Registry",
+          "request": {
+            "method": "GET",
+            "url": "http://127.0.0.1:8000/registry",
+            "description": "Get complete container registry (all deployed models)"
+          }
+        },
+        {
+          "name": "Get Model Registry Entry",
+          "request": {
+            "method": "GET",
+            "url": "http://127.0.0.1:8000/registry/{{model_id}}",
+            "description": "Get registry entry for specific model"
+          }
+        },
+        {
+          "name": "Get Model Version Registry Entry",
+          "request": {
+            "method": "GET",
+            "url": "http://127.0.0.1:8000/registry/{{model_id}}/versions/{{version}}",
+            "description": "Get registry entry for specific model version"
+          }
+        },
+        {
+          "name": "Prune Stale Entries",
+          "request": {
+            "method": "POST",
+            "url": "http://127.0.0.1:8000/registry/prune-stale",
+            "description": "Remove registry entries for containers that no longer exist"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "model_id",
+      "value": "108c29b0222d",
+      "description": "Model ID from upload response"
+    },
+    {
+      "key": "version",
+      "value": "v1",
+      "description": "Model version (default: v1)"
+    },
+    {
+      "key": "api_key",
+      "value": "",
+      "description": "API key if configured via PRISM_API_KEYS env var (optional)"
+    }
+  ]
+}

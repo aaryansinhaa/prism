@@ -127,6 +127,19 @@ def health() -> dict[str, Any]:
     }
 
 
+@app.get("/predict")
+def predict_usage() -> dict[str, Any]:
+    return {
+        "detail": "Use POST /predict with JSON body.",
+        "example_request": {
+            "method": "POST",
+            "path": "/predict",
+            "json": {"input": [[1.0, 2.0]]},
+        },
+        "input_schema": PredictRequest.model_json_schema(),
+    }
+
+
 @app.post("/predict")
 def predict(payload: PredictRequest) -> dict[str, Any]:
     model = getattr(app.state, "model", None)
