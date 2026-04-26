@@ -663,36 +663,70 @@ def upload_model_page() -> str:
 </div>
 """
 
-def model_control_center_page(model_id: str, model_entry: dict | None = None, version: str | None = None) -> str:
-    model_name = model_entry.get('name') if isinstance(model_entry, dict) else model_id
-    description = model_entry.get('description') if isinstance(model_entry, dict) else ''
-    config = model_entry.get('config') if isinstance(model_entry, dict) else {}
-    metrics_config = model_entry.get('metrics_config') if isinstance(model_entry, dict) else None
+
+def model_control_center_page(
+    model_id: str, model_entry: dict | None = None, version: str | None = None
+) -> str:
+    model_name = model_entry.get("name") if isinstance(model_entry, dict) else model_id
+    description = (
+        model_entry.get("description") if isinstance(model_entry, dict) else ""
+    )
+    config = model_entry.get("config") if isinstance(model_entry, dict) else {}
+    metrics_config = (
+        model_entry.get("metrics_config") if isinstance(model_entry, dict) else None
+    )
     if metrics_config is None:
         metrics_config = {}
-    version_label = version or (model_entry.get('version') if isinstance(model_entry, dict) else None) or 'v1'
-    
+    version_label = (
+        version
+        or (model_entry.get("version") if isinstance(model_entry, dict) else None)
+        or "v1"
+    )
+
     # Get tunable parameters with defaults
-    window_size = metrics_config.get('window_size', 60) if isinstance(metrics_config, dict) else 60
-    update_interval_ms = metrics_config.get('update_interval_ms', 1000) if isinstance(metrics_config, dict) else 1000
-    latency_threshold = metrics_config.get('latency_warning_threshold_ms', 1000) if isinstance(metrics_config, dict) else 1000
-    error_threshold = metrics_config.get('error_rate_warning_threshold_pct', 5.0) if isinstance(metrics_config, dict) else 5.0
-    chart_colors = (metrics_config.get('chart_colors', {
-        'requests': '#000000',
-        'latency': '#ff9900',
-        'throughput': '#0066ff',
-        'error_rate': '#ff0000',
-        'cpu_usage': '#00cc00',
-        'memory_usage': '#ff6600',
-    }) if isinstance(metrics_config, dict) else {
-        'requests': '#000000',
-        'latency': '#ff9900',
-        'throughput': '#0066ff',
-        'error_rate': '#ff0000',
-        'cpu_usage': '#00cc00',
-        'memory_usage': '#ff6600',
-    })
-    
+    window_size = (
+        metrics_config.get("window_size", 60)
+        if isinstance(metrics_config, dict)
+        else 60
+    )
+    update_interval_ms = (
+        metrics_config.get("update_interval_ms", 1000)
+        if isinstance(metrics_config, dict)
+        else 1000
+    )
+    latency_threshold = (
+        metrics_config.get("latency_warning_threshold_ms", 1000)
+        if isinstance(metrics_config, dict)
+        else 1000
+    )
+    error_threshold = (
+        metrics_config.get("error_rate_warning_threshold_pct", 5.0)
+        if isinstance(metrics_config, dict)
+        else 5.0
+    )
+    chart_colors = (
+        metrics_config.get(
+            "chart_colors",
+            {
+                "requests": "#000000",
+                "latency": "#ff9900",
+                "throughput": "#0066ff",
+                "error_rate": "#ff0000",
+                "cpu_usage": "#00cc00",
+                "memory_usage": "#ff6600",
+            },
+        )
+        if isinstance(metrics_config, dict)
+        else {
+            "requests": "#000000",
+            "latency": "#ff9900",
+            "throughput": "#0066ff",
+            "error_rate": "#ff0000",
+            "cpu_usage": "#00cc00",
+            "memory_usage": "#ff6600",
+        }
+    )
+
     return f"""
 <div class="max-w-6xl mx-auto">
   <div class="flex items-center justify-between mb-6">

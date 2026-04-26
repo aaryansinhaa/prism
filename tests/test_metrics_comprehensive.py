@@ -1,6 +1,5 @@
 """Comprehensive tests for metrics system and model control center."""
 
-import json
 from fastapi.testclient import TestClient
 from app.main import app
 from app.services.metrics_service import MetricsRegistry, MetricsCollector
@@ -27,7 +26,7 @@ class TestMetricsCollector:
         """UT: Recording a single request updates metrics."""
         collector = MetricsCollector("model1", "container1")
         collector.record_request(latency_ms=100.0, success=True)
-        
+
         metrics = collector.get_aggregated_metrics()
         assert len(metrics.latency) > 0
         assert metrics.latency[0] == 100.0
@@ -37,7 +36,7 @@ class TestMetricsCollector:
         collector = MetricsCollector("model1", "container1", window_size=10)
         for i in range(5):
             collector.record_request(latency_ms=50.0 + i, success=True)
-        
+
         metrics = collector.get_aggregated_metrics()
         assert len(metrics.requests) == 5
         assert metrics.requests[-1] == 5
@@ -47,10 +46,10 @@ class TestMetricsCollector:
         collector = MetricsCollector("model1", "container1")
         collector.record_request(latency_ms=100.0, success=True)
         collector.reset()
-        
+
         metrics = collector.get_aggregated_metrics()
-        assert all(l == 0.0 for l in metrics.latency)
-        assert all(r == 0 for r in metrics.requests)
+        assert all(latency == 0.0 for latency in metrics.latency)
+        assert all(requests == 0 for requests in metrics.requests)
 
 
 class TestMetricsRegistry:
@@ -66,7 +65,7 @@ class TestMetricsRegistry:
         """UT: Can register and retrieve model collector."""
         registry = MetricsRegistry.get_instance()
         registry._collectors.clear()
-        
+
         collector = registry.register_model("test-model", "container123")
         assert collector is not None
         assert collector.model_id == "test-model"
@@ -76,7 +75,7 @@ class TestMetricsRegistry:
         registry = MetricsRegistry.get_instance()
         registry._collectors.clear()
         registry.register_model("model1", "container1")
-        
+
         registry.remove_model("model1")
         assert registry.get_collector("model1") is None
 
@@ -100,7 +99,7 @@ class TestModelMetricsEndpoint:
         """IT: Metrics response includes all required fields."""
         response = client.get("/api/model-metrics?model_id=test-model")
         data = response.json()
-        
+
         assert "labels" in data
         assert "requests" in data
         assert "latency" in data
@@ -110,7 +109,7 @@ class TestModelMetricsEndpoint:
         """IT: Metric arrays have consistent lengths."""
         response = client.get("/api/model-metrics?model_id=test-model")
         data = response.json()
-        
+
         n_labels = len(data["labels"])
         assert len(data["requests"]) == n_labels
         assert len(data["latency"]) == n_labels
@@ -130,20 +129,25 @@ class TestModelControlCenterUI:
         response = client.get("/model/test-model/control")
         # Should still render with default values for missing model
         assert response.status_code == 200
-        assert "Model Control Center" in response.text or "model_control" in response.text.lower()
+        assert (
+            "Model Control Center" in response.text
+            or "model_control" in response.text.lower()
+        )
 
     def test_control_center_has_metrics_forms(self):
         """IT: Control center includes configuration forms."""
         response = client.get("/model/test-model/control")
-        
+
         assert response.status_code == 200
         # Should have configuration form (even if model doesn't exist)
-        assert "metricsConfigForm" in response.text or "metrics" in response.text.lower()
+        assert (
+            "metricsConfigForm" in response.text or "metrics" in response.text.lower()
+        )
 
     def test_control_center_has_charts(self):
         """IT: Control center includes chart canvases."""
         response = client.get("/model/test-model/control")
-        
+
         assert response.status_code == 200
         assert "requestsChart" in response.text or "requests" in response.text.lower()
         assert "latencyChart" in response.text or "latency" in response.text.lower()
@@ -166,7 +170,9 @@ class TestModelControlCenterUI:
         response = client.get("/model/test-model/control")
         assert response.status_code == 200
         # Should mention warnings or thresholds
-        assert "warning" in response.text.lower() or "threshold" in response.text.lower()
+        assert (
+            "warning" in response.text.lower() or "threshold" in response.text.lower()
+        )
 
     def test_control_center_javascript_updates(self):
         """IT: Control center includes JavaScript for chart updates."""

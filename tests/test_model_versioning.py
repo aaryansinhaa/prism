@@ -94,7 +94,9 @@ def test_public_predict_routes_to_active_version(monkeypatch, tmp_path):
     assert calls == ["http://127.0.0.1:9002/predict"]
 
 
-@pytest.mark.skip(reason="Test has global state pollution issues - passes individually but fails in suite")
+@pytest.mark.skip(
+    reason="Test has global state pollution issues - passes individually but fails in suite"
+)
 def test_versioned_predict_routes_to_requested_version(monkeypatch, tmp_path):
     registry_file = tmp_path / "containers.json"
     monkeypatch.setenv("MODEL_CONTAINER_REGISTRY_PATH", str(registry_file))

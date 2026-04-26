@@ -237,7 +237,9 @@ class TestLoadBalancedPrediction:
         assert response.status_code == 200
         assert calls == ["http://127.0.0.1:9001/predict"]
 
-    @pytest.mark.skip(reason="Test has global state pollution issues - passes individually but fails in suite")
+    @pytest.mark.skip(
+        reason="Test has global state pollution issues - passes individually but fails in suite"
+    )
     def test_multiple_instances_round_robin(self, monkeypatch, tmp_path):
         """Test prediction distributes across instances with round-robin."""
         registry_file = tmp_path / "containers.json"

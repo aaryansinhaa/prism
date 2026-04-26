@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import asyncio
 import time
 from collections import deque
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from typing import Optional
 
 
@@ -41,7 +40,7 @@ class MetricsCollector:
 
     def __init__(self, model_id: str, container_id: str, window_size: int = 60):
         """Initialize metrics collector.
-        
+
         Args:
             model_id: The model identifier
             container_id: Docker container ID
@@ -64,7 +63,7 @@ class MetricsCollector:
         memory_mb: Optional[float] = None,
     ) -> None:
         """Record a single request metric.
-        
+
         Args:
             latency_ms: Request latency in milliseconds
             success: Whether request succeeded
@@ -90,7 +89,7 @@ class MetricsCollector:
 
     def get_aggregated_metrics(self) -> ModelMetrics:
         """Get aggregated metrics for dashboard display.
-        
+
         Returns:
             ModelMetrics with time-series data suitable for charting
         """
@@ -116,7 +115,7 @@ class MetricsCollector:
         # Extract raw values
         latencies = [float(s.latency_ms) for s in snapshots]
         requests = [s.requests_count for s in snapshots]
-        error_counts = [s.error_count for s in snapshots]
+        # error_counts = [s.error_count for s in snapshots]
 
         # Calculate throughput (requests per second in the window)
         throughputs = []
@@ -138,9 +137,7 @@ class MetricsCollector:
             if snapshot.requests_count == 0:
                 error_rates.append(0.0)
             else:
-                error_rate = (
-                    snapshot.error_count / snapshot.requests_count * 100
-                )
+                error_rate = snapshot.error_count / snapshot.requests_count * 100
                 error_rates.append(min(error_rate, 100.0))
 
         # Extract CPU and memory if available
@@ -192,11 +189,11 @@ class MetricsRegistry:
 
     def register_model(self, model_id: str, container_id: str) -> MetricsCollector:
         """Register a model for metrics collection.
-        
+
         Args:
             model_id: Model identifier
             container_id: Docker container ID
-            
+
         Returns:
             MetricsCollector instance for the model
         """
@@ -206,10 +203,10 @@ class MetricsRegistry:
 
     def get_collector(self, model_id: str) -> Optional[MetricsCollector]:
         """Get metrics collector for a model.
-        
+
         Args:
             model_id: Model identifier
-            
+
         Returns:
             MetricsCollector or None if not registered
         """
@@ -224,7 +221,7 @@ class MetricsRegistry:
         memory_mb: Optional[float] = None,
     ) -> None:
         """Record a request for a model.
-        
+
         Args:
             model_id: Model identifier
             latency_ms: Latency in milliseconds
@@ -240,10 +237,10 @@ class MetricsRegistry:
 
     def get_metrics(self, model_id: str) -> Optional[ModelMetrics]:
         """Get aggregated metrics for a model.
-        
+
         Args:
             model_id: Model identifier
-            
+
         Returns:
             ModelMetrics or None if not registered
         """
@@ -254,7 +251,7 @@ class MetricsRegistry:
 
     def remove_model(self, model_id: str) -> None:
         """Remove metrics for a model.
-        
+
         Args:
             model_id: Model identifier
         """
@@ -262,7 +259,7 @@ class MetricsRegistry:
 
     def get_all_metrics(self) -> dict[str, ModelMetrics]:
         """Get metrics for all models.
-        
+
         Returns:
             Dictionary mapping model IDs to their metrics
         """

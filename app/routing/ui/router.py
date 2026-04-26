@@ -43,8 +43,6 @@ from app.services.dashboard_service import (
 )
 from app.services.metrics_service import MetricsRegistry
 from app.utils.qr_utils import generate_qr_data_uri
-import random
-import time
 
 router = APIRouter(tags=["frontend"])
 
@@ -265,11 +263,13 @@ async def upload_and_run_ui(
                 instance_key,
                 image_tag,
             )
-            instances.append({
-                "container_id": container_id,
-                "port": host_port,
-                "instance_index": i,
-            })
+            instances.append(
+                {
+                    "container_id": container_id,
+                    "port": host_port,
+                    "instance_index": i,
+                }
+            )
             hosts.append(host_port)
 
         tunnel_url = None
@@ -326,16 +326,32 @@ async def upload_and_run_ui(
             entry = models.get(model_id)
             model_version = version or "v1"
             if isinstance(entry, dict):
-                versions = entry.get("versions") if isinstance(entry.get("versions"), dict) else None
+                versions = (
+                    entry.get("versions")
+                    if isinstance(entry.get("versions"), dict)
+                    else None
+                )
                 if versions and model_version in versions:
                     version_entry = versions[model_version]
                 else:
                     # fallback to legacy shape
                     version_entry = entry
                 cfg = {
-                    "load_balancing": {"replicas": int(replicas or 1), "strategy": load_balancing_strategy},
-                    "caching": {"enabled": bool(enable_caching), "ttl": int(cache_ttl) if cache_ttl is not None else None},
-                    "batching": {"enabled": bool(enable_batching), "batch_size": int(batch_size) if batch_size else None, "batch_timeout_ms": int(batch_timeout) if batch_timeout else None},
+                    "load_balancing": {
+                        "replicas": int(replicas or 1),
+                        "strategy": load_balancing_strategy,
+                    },
+                    "caching": {
+                        "enabled": bool(enable_caching),
+                        "ttl": int(cache_ttl) if cache_ttl is not None else None,
+                    },
+                    "batching": {
+                        "enabled": bool(enable_batching),
+                        "batch_size": int(batch_size) if batch_size else None,
+                        "batch_timeout_ms": (
+                            int(batch_timeout) if batch_timeout else None
+                        ),
+                    },
                 }
                 version_entry["config"] = cfg
                 save_registry(data)
@@ -419,7 +435,7 @@ async def model_control_page(model_id: str, version: str | None = None) -> str:
 @router.get("/api/model-metrics")
 async def api_model_metrics(model_id: str) -> JSONResponse:
     """Return real metrics for the model from the metrics registry.
-    
+
     Returns:
         JSON with keys:
         - labels: Time labels (1, 2, 3, ...)
@@ -432,31 +448,33 @@ async def api_model_metrics(model_id: str) -> JSONResponse:
     """
     metrics_registry = MetricsRegistry.get_instance()
     metrics = metrics_registry.get_metrics(model_id)
-    
+
     if metrics is None:
         # Model not in registry, return empty metrics with placeholder data
-        return JSONResponse({
-            "labels": [str(i + 1) for i in range(20)],
-            "requests": [0] * 20,
-            "latency": [0.0] * 20,
-            "throughput": [0.0] * 20,
-            "error_rate": [0.0] * 20,
-        })
-    
+        return JSONResponse(
+            {
+                "labels": [str(i + 1) for i in range(20)],
+                "requests": [0] * 20,
+                "latency": [0.0] * 20,
+                "throughput": [0.0] * 20,
+                "error_rate": [0.0] * 20,
+            }
+        )
+
     response_data = {
         "labels": metrics.labels,
         "requests": metrics.requests,
         "latency": metrics.latency,
         "throughput": metrics.throughput,
     }
-    
+
     if metrics.error_rate is not None:
         response_data["error_rate"] = metrics.error_rate
     if metrics.cpu_usage is not None:
         response_data["cpu_usage"] = metrics.cpu_usage
     if metrics.memory_usage is not None:
         response_data["memory_usage"] = metrics.memory_usage
-    
+
     return JSONResponse(response_data)
 
 
@@ -469,14 +487,14 @@ async def record_metrics(
     memory_mb: float | None = Form(None),
 ) -> JSONResponse:
     """Record a single request metric for a model.
-    
+
     Args:
         model_id: Model identifier
         latency_ms: Request latency in milliseconds
         success: Whether request succeeded
         cpu_percent: CPU usage percentage (optional)
         memory_mb: Memory usage in MB (optional)
-        
+
     Returns:
         JSON acknowledgment
     """
@@ -497,11 +515,11 @@ async def register_model_metrics(
     container_id: str = Form(...),
 ) -> JSONResponse:
     """Register a model for metrics tracking.
-    
+
     Args:
         model_id: Model identifier
         container_id: Docker container ID
-        
+
     Returns:
         JSON acknowledgment
     """
@@ -513,17 +531,17 @@ async def register_model_metrics(
 @router.get("/api/metrics-config")
 async def get_metrics_config(model_id: str) -> JSONResponse:
     """Get current metrics configuration for a model.
-    
+
     This endpoint returns the current metrics settings that can be adjusted
     from the model control center. Users can tune:
     - Display window size (number of data points)
     - Update interval
     - Thresholds for warnings/alerts
     - Which metrics to display
-    
+
     Args:
         model_id: Model identifier
-        
+
     Returns:
         JSON with current configuration
     """
@@ -534,24 +552,35 @@ async def get_metrics_config(model_id: str) -> JSONResponse:
         config = model_entry.get("metrics_config", {})
     except Exception:
         config = {}
-    
+
     # Provide sensible defaults
-    return JSONResponse({
-        "model_id": model_id,
-        "window_size": config.get("window_size", 60),  # 60 data points
-        "update_interval_ms": config.get("update_interval_ms", 1000),  # 1 second
-        "display_metrics": config.get("display_metrics", ["latency", "throughput", "requests", "error_rate"]),
-        "latency_warning_threshold_ms": config.get("latency_warning_threshold_ms", 1000),
-        "error_rate_warning_threshold_pct": config.get("error_rate_warning_threshold_pct", 5.0),
-        "chart_colors": config.get("chart_colors", {
-            "requests": "#000000",
-            "latency": "#ff9900",
-            "throughput": "#0066ff",
-            "error_rate": "#ff0000",
-            "cpu_usage": "#00cc00",
-            "memory_usage": "#ff6600",
-        }),
-    })
+    return JSONResponse(
+        {
+            "model_id": model_id,
+            "window_size": config.get("window_size", 60),  # 60 data points
+            "update_interval_ms": config.get("update_interval_ms", 1000),  # 1 second
+            "display_metrics": config.get(
+                "display_metrics", ["latency", "throughput", "requests", "error_rate"]
+            ),
+            "latency_warning_threshold_ms": config.get(
+                "latency_warning_threshold_ms", 1000
+            ),
+            "error_rate_warning_threshold_pct": config.get(
+                "error_rate_warning_threshold_pct", 5.0
+            ),
+            "chart_colors": config.get(
+                "chart_colors",
+                {
+                    "requests": "#000000",
+                    "latency": "#ff9900",
+                    "throughput": "#0066ff",
+                    "error_rate": "#ff0000",
+                    "cpu_usage": "#00cc00",
+                    "memory_usage": "#ff6600",
+                },
+            ),
+        }
+    )
 
 
 @router.post("/api/metrics-config")
@@ -563,14 +592,14 @@ async def update_metrics_config(
     error_rate_warning_threshold_pct: float | None = Form(None),
 ) -> JSONResponse:
     """Update metrics configuration for a model from the control center.
-    
+
     Args:
         model_id: Model identifier
         window_size: Number of data points to display (1-600)
         update_interval_ms: How often to fetch metrics (100-10000 ms)
         latency_warning_threshold_ms: Warn if latency exceeds this (ms)
         error_rate_warning_threshold_pct: Warn if error rate exceeds this (%)
-        
+
     Returns:
         JSON with updated configuration
     """
@@ -583,14 +612,16 @@ async def update_metrics_config(
         if latency_warning_threshold_ms is not None:
             latency_warning_threshold_ms = max(1, int(latency_warning_threshold_ms))
         if error_rate_warning_threshold_pct is not None:
-            error_rate_warning_threshold_pct = max(0.0, min(100.0, float(error_rate_warning_threshold_pct)))
-        
+            error_rate_warning_threshold_pct = max(
+                0.0, min(100.0, float(error_rate_warning_threshold_pct))
+            )
+
         # Load and update registry
         data = load_registry()
         model_entry, resolved_version, _ = resolve_model_version_entry(
             model_id, registry=data
         )
-        
+
         # Build metrics config
         metrics_config = model_entry.get("metrics_config", {})
         if window_size is not None:
@@ -598,23 +629,32 @@ async def update_metrics_config(
         if update_interval_ms is not None:
             metrics_config["update_interval_ms"] = update_interval_ms
         if latency_warning_threshold_ms is not None:
-            metrics_config["latency_warning_threshold_ms"] = latency_warning_threshold_ms
+            metrics_config["latency_warning_threshold_ms"] = (
+                latency_warning_threshold_ms
+            )
         if error_rate_warning_threshold_pct is not None:
-            metrics_config["error_rate_warning_threshold_pct"] = error_rate_warning_threshold_pct
-        
+            metrics_config["error_rate_warning_threshold_pct"] = (
+                error_rate_warning_threshold_pct
+            )
+
         model_entry["metrics_config"] = metrics_config
         save_registry(data)
-        
-        return JSONResponse({
-            "status": "updated",
-            "model_id": model_id,
-            "config": metrics_config,
-        })
+
+        return JSONResponse(
+            {
+                "status": "updated",
+                "model_id": model_id,
+                "config": metrics_config,
+            }
+        )
     except Exception as e:
-        return JSONResponse({
-            "status": "error",
-            "error": str(e),
-        }, status_code=400)
+        return JSONResponse(
+            {
+                "status": "error",
+                "error": str(e),
+            },
+            status_code=400,
+        )
 
 
 @router.post("/predict-result", response_class=HTMLResponse)
