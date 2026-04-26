@@ -233,11 +233,11 @@ Environment variables commonly used in PRISM:
 | `MODEL_CONTAINER_REGISTRY_PATH` | `app/registry/containers.json` | Registry file location |
 | `PRISM_SINGLE_ACTIVE_MODEL` | `true` | If true, old deployments are removed when deploying a new one |
 | `PRISM_ENABLE_HEALTH_MONITOR` | `true` | Enables background health monitor |
-| `PRISM_HEALTH_MONITOR_INTERVAL_SECONDS` | `15` | Monitor cycle interval |
+| `PRISM_HEALTH_MONITOR_INTERVAL_SECONDS` | `10` | Monitor cycle interval |
 | `ENABLE_TUNNEL` | `false` | Enables tunnel creation in `/models/upload-and-run` flow |
 | `NGROK_AUTHTOKEN` | unset | Required for ngrok tunnel worker |
 | `PRISM_API_KEYS` | unset | Comma-separated API keys for protected inference |
-| `PRISM_RATE_LIMIT_REQUESTS` | `60` | Requests per rate-limit window |
+| `PRISM_RATE_LIMIT_REQUESTS` | `120` | Requests per rate-limit window |
 | `PRISM_RATE_LIMIT_WINDOW_SECONDS` | `60` | Rate-limit window duration |
 | `PRISM_BATCH_WINDOW_MS` | `50` | Request batching window for `/models/{model_id}/predict` |
 | `PRISM_TUNNEL_START_TIMEOUT` | `30` | Timeout for tunnel worker startup |

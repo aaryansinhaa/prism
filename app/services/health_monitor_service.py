@@ -13,12 +13,12 @@ from app.utils.docker_utils import get_container_status, restart_container
 
 
 def _monitor_interval_seconds() -> int:
-    raw = os.environ.get("PRISM_HEALTH_MONITOR_INTERVAL_SECONDS", "15")
+    raw = os.environ.get("PRISM_HEALTH_MONITOR_INTERVAL_SECONDS", "10")
     try:
         parsed = int(raw)
         return max(1, parsed)
     except ValueError:
-        return 15
+        return 10
 
 
 @dataclass(slots=True)

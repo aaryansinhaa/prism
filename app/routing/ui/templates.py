@@ -503,7 +503,8 @@ def dashboard_page_with_cards(model_cards: list, has_models: bool) -> str:
         <div class="flex gap-2 mt-4 pt-4 border-t border-gray-200">
             <a href="/predict?model_id={card.model_id}" class="btn-secondary flex-1 text-center text-xs">Predict</a>
             <button hx-get="/api/model-logs?container_id={card.container_id}" hx-target="#modal-logs-container" hx-swap="innerHTML" class="btn-secondary flex-1 text-xs" data-modal="logs">View Logs</button>
-            <button hx-delete="/api/delete-model" hx-vals='{{"model_id": "{card.model_id}", "container_id": "{card.container_id}"}}' hx-target="closest .model-card" hx-swap="outerHTML" hx-confirm="Delete this model and its container? This cannot be undone." class="btn-danger flex-1 text-xs">Delete</button>
+          <a href="/model/{card.model_id}/control" class="btn-secondary flex-1 text-xs">Control Center</a>
+          <button hx-delete="/api/delete-model" hx-vals='{{"model_id": "{card.model_id}", "container_id": "{card.container_id}"}}' hx-target="closest .model-card" hx-swap="outerHTML" hx-confirm="Delete this model and its container? This cannot be undone." class="btn-danger flex-1 text-xs">Delete</button>
         </div>
     </div>
 """)
@@ -595,6 +596,52 @@ def upload_model_page() -> str:
       <span class="text-xs text-gray-600 ml-auto">Share prediction link publicly</span>
     </div>
 
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-black mb-3">Version (optional)</label>
+        <input type="text" name="version" maxlength="40" placeholder="e.g. v1.0" class="w-full text-sm border border-black p-3 rounded-md">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-black mb-3">Replicas</label>
+        <input type="number" name="replicas" min="1" max="10" value="1" class="w-full text-sm border border-black p-3 rounded-md">
+        <p class="text-xs text-gray-600 mt-2">Deploy multiple instances for simple load balancing.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-black mb-3">Load Balancing Strategy</label>
+        <select name="load_balancing_strategy" class="w-full text-sm border border-black p-3 rounded-md">
+          <option value="round-robin">Round-robin (default)</option>
+          <option value="least-connections">Least-connections</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-black mb-3">Enable Request Caching</label>
+        <div class="flex items-center gap-3">
+          <input type="checkbox" id="enableCaching" name="enable_caching" class="w-5 h-5 accent-black">
+          <label for="enableCaching" class="text-sm font-medium text-black">Enable</label>
+        </div>
+        <input type="number" name="cache_ttl" min="0" placeholder="TTL (seconds)" class="w-full text-sm border border-black p-3 rounded-md mt-2">
+        <p class="text-xs text-gray-600 mt-2">Cache identical prediction inputs for this many seconds (0 = no TTL).</p>
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-black mb-3">Enable Batching</label>
+      <div class="flex items-center gap-3">
+        <input type="checkbox" id="enableBatching" name="enable_batching" class="w-5 h-5 accent-black">
+        <label for="enableBatching" class="text-sm font-medium text-black">Enable</label>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mt-3">
+        <input type="number" name="batch_size" min="1" placeholder="Batch size" class="text-sm border border-black p-3 rounded-md">
+        <input type="number" name="batch_timeout" min="0" placeholder="Timeout (ms)" class="text-sm border border-black p-3 rounded-md">
+      </div>
+      <p class="text-xs text-gray-600 mt-2">Buffer up to N requests or wait M ms to form a batch.</p>
+    </div>
+
     <button type="submit" class="btn-primary w-full">Upload & Deploy</button>
   </form>
 
@@ -613,5 +660,328 @@ def upload_model_page() -> str:
       <li>Maximum file size: 500MB</li>
     </ul>
   </div>
+</div>
+"""
+
+def model_control_center_page(model_id: str, model_entry: dict | None = None, version: str | None = None) -> str:
+    model_name = model_entry.get('name') if isinstance(model_entry, dict) else model_id
+    description = model_entry.get('description') if isinstance(model_entry, dict) else ''
+    config = model_entry.get('config') if isinstance(model_entry, dict) else {}
+    metrics_config = model_entry.get('metrics_config') if isinstance(model_entry, dict) else None
+    if metrics_config is None:
+        metrics_config = {}
+    version_label = version or (model_entry.get('version') if isinstance(model_entry, dict) else None) or 'v1'
+    
+    # Get tunable parameters with defaults
+    window_size = metrics_config.get('window_size', 60) if isinstance(metrics_config, dict) else 60
+    update_interval_ms = metrics_config.get('update_interval_ms', 1000) if isinstance(metrics_config, dict) else 1000
+    latency_threshold = metrics_config.get('latency_warning_threshold_ms', 1000) if isinstance(metrics_config, dict) else 1000
+    error_threshold = metrics_config.get('error_rate_warning_threshold_pct', 5.0) if isinstance(metrics_config, dict) else 5.0
+    chart_colors = (metrics_config.get('chart_colors', {
+        'requests': '#000000',
+        'latency': '#ff9900',
+        'throughput': '#0066ff',
+        'error_rate': '#ff0000',
+        'cpu_usage': '#00cc00',
+        'memory_usage': '#ff6600',
+    }) if isinstance(metrics_config, dict) else {
+        'requests': '#000000',
+        'latency': '#ff9900',
+        'throughput': '#0066ff',
+        'error_rate': '#ff0000',
+        'cpu_usage': '#00cc00',
+        'memory_usage': '#ff6600',
+    })
+    
+    return f"""
+<div class="max-w-6xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-3xl font-bold text-black">Model Control Center</h1>
+      <p class="text-gray-700">Overview and tunable metrics for <strong>{escape_html(model_name or '')}</strong> ({escape_html(model_id or '')})</p>
+    </div>
+    <div>
+      <a href="/" class="btn-secondary">Back to Dashboard</a>
+    </div>
+  </div>
+
+  <!-- Model Info Cards -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+    <div class="model-card">
+      <p class="text-xs text-gray-600">Model ID</p>
+      <p class="font-mono text-sm text-black break-all">{escape_html(model_id)}</p>
+    </div>
+    <div class="model-card">
+      <p class="text-xs text-gray-600">Version</p>
+      <p class="font-mono text-sm text-black">{escape_html(version_label)}</p>
+    </div>
+    <div class="model-card">
+      <p class="text-xs text-gray-600">Description</p>
+      <p class="text-sm text-gray-700">{escape_html(description or '')}</p>
+    </div>
+  </div>
+
+  <!-- Metrics Configuration Controls -->
+  <div class="card p-6 mb-6">
+    <h2 class="text-lg font-bold text-black mb-4">⚙️ Metrics Configuration</h2>
+    <form id="metricsConfigForm" hx-post="/api/metrics-config" hx-target="#configResponse">
+      <input type="hidden" name="model_id" value="{escape_html(model_id)}">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Display Window Size
+            <span class="text-xs text-gray-500">(data points)</span>
+          </label>
+          <input 
+            type="number" 
+            name="window_size" 
+            value="{window_size}"
+            min="1" 
+            max="600" 
+            class="w-full px-3 py-2 border border-black rounded text-black"
+          >
+          <p class="text-xs text-gray-600 mt-1">Number of data points to display (1-600)</p>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Update Interval
+            <span class="text-xs text-gray-500">(milliseconds)</span>
+          </label>
+          <input 
+            type="number" 
+            name="update_interval_ms" 
+            value="{update_interval_ms}"
+            min="100" 
+            max="10000" 
+            step="100"
+            class="w-full px-3 py-2 border border-black rounded text-black"
+          >
+          <p class="text-xs text-gray-600 mt-1">How often to refresh metrics (100-10000 ms)</p>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Latency Warning Threshold
+            <span class="text-xs text-gray-500">(milliseconds)</span>
+          </label>
+          <input 
+            type="number" 
+            name="latency_warning_threshold_ms" 
+            value="{latency_threshold}"
+            min="1" 
+            class="w-full px-3 py-2 border border-black rounded text-black"
+          >
+          <p class="text-xs text-gray-600 mt-1">Warn when latency exceeds this threshold</p>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Error Rate Warning Threshold
+            <span class="text-xs text-gray-500">(%)</span>
+          </label>
+          <input 
+            type="number" 
+            name="error_rate_warning_threshold_pct" 
+            value="{error_threshold}"
+            min="0" 
+            max="100" 
+            step="0.1"
+            class="w-full px-3 py-2 border border-black rounded text-black"
+          >
+          <p class="text-xs text-gray-600 mt-1">Warn when error rate exceeds this percentage</p>
+        </div>
+      </div>
+      
+      <div class="mt-6 flex gap-2">
+        <button type="submit" class="btn-primary">Save Configuration</button>
+        <button type="reset" class="btn-secondary">Reset</button>
+      </div>
+    </form>
+    <div id="configResponse" class="mt-4"></div>
+  </div>
+
+  <!-- Performance Charts -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card p-4">
+      <h3 class="text-sm font-semibold mb-2">📊 Requests</h3>
+      <canvas id="requestsChart" height="160"></canvas>
+    </div>
+    <div class="card p-4">
+      <h3 class="text-sm font-semibold mb-2">⏱️ Latency (ms)</h3>
+      <canvas id="latencyChart" height="160"></canvas>
+      <p class="text-xs text-gray-600 mt-2">⚠️ Warning threshold: {latency_threshold}ms</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card p-4">
+      <h3 class="text-sm font-semibold mb-2">🚀 Throughput (req/s)</h3>
+      <canvas id="throughputChart" height="160"></canvas>
+    </div>
+    <div class="card p-4">
+      <h3 class="text-sm font-semibold mb-2">❌ Error Rate (%)</h3>
+      <canvas id="errorChart" height="160"></canvas>
+      <p class="text-xs text-gray-600 mt-2">⚠️ Warning threshold: {error_threshold}%</p>
+    </div>
+  </div>
+
+  <!-- Deployment Configuration -->
+  <div class="card p-4 mb-6">
+    <h3 class="text-sm font-semibold mb-2">⚙️ Deployment Configuration</h3>
+    <pre class="text-xs font-mono bg-white p-3 border border-black rounded text-gray-900">{escape_html(json.dumps(config or dict(), indent=2))}</pre>
+  </div>
+
+  <!-- Metrics Color Configuration -->
+  <div class="card p-4 mb-6">
+    <h3 class="text-sm font-semibold mb-2">🎨 Chart Colors</h3>
+    <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="text-sm">
+        <p class="text-gray-600">Requests</p>
+        <div class="w-8 h-8 border-2 border-black rounded" style="background-color: {chart_colors.get('requests', '#000000')};"></div>
+        <code class="text-xs">{chart_colors.get('requests', '#000000')}</code>
+      </div>
+      <div class="text-sm">
+        <p class="text-gray-600">Latency</p>
+        <div class="w-8 h-8 border-2 border-black rounded" style="background-color: {chart_colors.get('latency', '#ff9900')};"></div>
+        <code class="text-xs">{chart_colors.get('latency', '#ff9900')}</code>
+      </div>
+      <div class="text-sm">
+        <p class="text-gray-600">Throughput</p>
+        <div class="w-8 h-8 border-2 border-black rounded" style="background-color: {chart_colors.get('throughput', '#0066ff')};"></div>
+        <code class="text-xs">{chart_colors.get('throughput', '#0066ff')}</code>
+      </div>
+      <div class="text-sm">
+        <p class="text-gray-600">Error Rate</p>
+        <div class="w-8 h-8 border-2 border-black rounded" style="background-color: {chart_colors.get('error_rate', '#ff0000')};"></div>
+        <code class="text-xs">{chart_colors.get('error_rate', '#ff0000')}</code>
+      </div>
+      <div class="text-sm">
+        <p class="text-gray-600">CPU Usage</p>
+        <div class="w-8 h-8 border-2 border-black rounded" style="background-color: {chart_colors.get('cpu_usage', '#00cc00')};"></div>
+        <code class="text-xs">{chart_colors.get('cpu_usage', '#00cc00')}</code>
+      </div>
+      <div class="text-sm">
+        <p class="text-gray-600">Memory Usage</p>
+        <div class="w-8 h-8 border-2 border-black rounded" style="background-color: {chart_colors.get('memory_usage', '#ff6600')};"></div>
+        <code class="text-xs">{chart_colors.get('memory_usage', '#ff6600')}</code>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const MODEL_ID = '{escape_html(model_id)}';
+    const CONFIG = {{
+      windowSize: {window_size},
+      updateInterval: {update_interval_ms},
+      latencyThreshold: {latency_threshold},
+      errorThreshold: {error_threshold},
+      colors: {{
+        requests: '{chart_colors.get('requests', '#000000')}',
+        latency: '{chart_colors.get('latency', '#ff9900')}',
+        throughput: '{chart_colors.get('throughput', '#0066ff')}',
+        errorRate: '{chart_colors.get('error_rate', '#ff0000')}',
+      }}
+    }};
+    
+    let charts = {{}};
+    
+    async function fetchMetrics() {{
+      try {{
+        const res = await fetch(`/api/model-metrics?model_id=${{MODEL_ID}}`);
+        return res.json();
+      }} catch(e) {{
+        console.error('Error fetching metrics:', e);
+        return null;
+      }}
+    }}
+    
+    function renderChart(canvasId, labels, values, color, threshold = null) {{
+      const ctx = document.getElementById(canvasId);
+      if (!ctx) return;
+      
+      const options = {{
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {{
+          x: {{ display: false }},
+          y: {{ beginAtZero: true }},
+        }},
+        plugins: {{
+          legend: {{ display: false }},
+        }}
+      }};
+      
+      // Add threshold line if provided
+      let plugins = undefined;
+      if (threshold !== null) {{
+        plugins = {{
+          annotation: {{
+            annotations: {{
+              threshold: {{
+                type: 'line',
+                yMin: threshold,
+                yMax: threshold,
+                borderColor: '#ff0000',
+                borderDash: [5, 5],
+              }}
+            }}
+          }}
+        }};
+      }}
+      
+      if (charts[canvasId]) {{
+        charts[canvasId].destroy();
+      }}
+      
+      charts[canvasId] = new Chart(ctx, {{
+        type: 'line',
+        data: {{
+          labels,
+          datasets: [{{
+            data: values,
+            borderColor: color,
+            backgroundColor: color + '33',
+            fill: true,
+            tension: 0.2,
+            borderWidth: 2,
+          }}]
+        }},
+        options,
+      }});
+    }}
+    
+    async function updateCharts() {{
+      const metrics = await fetchMetrics();
+      if (!metrics) return;
+      
+      const labels = metrics.labels || [];
+      const requests = metrics.requests || [];
+      const latency = metrics.latency || [];
+      const throughput = metrics.throughput || [];
+      const errorRate = metrics.error_rate || [];
+      
+      renderChart('requestsChart', labels, requests, CONFIG.colors.requests);
+      renderChart('latencyChart', labels, latency, CONFIG.colors.latency, CONFIG.latencyThreshold);
+      renderChart('throughputChart', labels, throughput, CONFIG.colors.throughput);
+      renderChart('errorChart', labels, errorRate, CONFIG.colors.errorRate, CONFIG.errorThreshold);
+    }}
+    
+    // Initial load
+    updateCharts();
+    
+    // Refresh on interval
+    setInterval(updateCharts, CONFIG.updateInterval);
+    
+    // Allow manual refresh
+    document.addEventListener('keydown', (e) => {{
+      if (e.ctrlKey && e.key === 'r') {{
+        e.preventDefault();
+        updateCharts();
+      }}
+    }});
+  </script>
 </div>
 """

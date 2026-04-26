@@ -80,7 +80,7 @@ def validate_api_key(request: Request) -> str:
 
 
 def _rate_limit_config() -> Tuple[int, int]:
-    max_requests = int(os.environ.get("PRISM_RATE_LIMIT_REQUESTS", "60"))
+    max_requests = int(os.environ.get("PRISM_RATE_LIMIT_REQUESTS", "120"))
     window_seconds = int(os.environ.get("PRISM_RATE_LIMIT_WINDOW_SECONDS", "60"))
     return max_requests, window_seconds
 

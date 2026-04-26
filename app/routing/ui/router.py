@@ -9,7 +9,7 @@ from typing import Any, Dict
 
 import httpx
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.core import run_model_container
 from app.core.input_contract import validate_payload_against_expected_input_json
@@ -20,6 +20,11 @@ from app.registry.container_registry import (
     registry_path,
     resolve_model_version_entry,
 )
+from app.registry.container_registry import (
+    register_container_instance,
+    load_registry,
+    save_registry,
+)
 from app.routing.ui.templates import (
     base_layout,
     dashboard_page_with_cards,
@@ -29,13 +34,17 @@ from app.routing.ui.templates import (
     prediction_result_component,
     upload_model_page,
     upload_success_response,
+    model_control_center_page,
 )
 from app.services.dashboard_service import (
     ContainerService,
     DashboardService,
     ModelRegistryService,
 )
+from app.services.metrics_service import MetricsRegistry
 from app.utils.qr_utils import generate_qr_data_uri
+import random
+import time
 
 router = APIRouter(tags=["frontend"])
 
@@ -216,6 +225,13 @@ async def upload_and_run_ui(
     model_description: str | None = Form(None),
     expected_input_json: str | None = Form(None),
     enable_tunnel: bool = Form(False),
+    replicas: int = Form(1),
+    load_balancing_strategy: str | None = Form("round-robin"),
+    enable_caching: bool = Form(False),
+    cache_ttl: int | None = Form(None),
+    enable_batching: bool = Form(False),
+    batch_size: int | None = Form(None),
+    batch_timeout: int | None = Form(None),
 ) -> str:
     try:
         file_name = file.filename or ""
@@ -239,11 +255,22 @@ async def upload_and_run_ui(
         deployment_key = upload_result["deployment_key"]
         image_tag = upload_result["image_tag"]
 
-        container_name, host_port, container_id = await asyncio.to_thread(
-            run_model_container,
-            deployment_key,
-            image_tag,
-        )
+        # Support deploying multiple replicas for simple load balancing
+        instances: list[dict] = []
+        hosts: list[int] = []
+        for i in range(max(1, int(replicas or 1))):
+            instance_key = deployment_key if i == 0 else f"{deployment_key}__{i}"
+            container_name, host_port, container_id = await asyncio.to_thread(
+                run_model_container,
+                instance_key,
+                image_tag,
+            )
+            instances.append({
+                "container_id": container_id,
+                "port": host_port,
+                "instance_index": i,
+            })
+            hosts.append(host_port)
 
         tunnel_url = None
         tunnel_warning = None
@@ -264,16 +291,57 @@ async def upload_and_run_ui(
         if _single_active_mode_enabled():
             await ContainerService.kill_all_models_async()
 
-        register_container(
-            model_id=model_id,
-            version=version,
-            container_id=container_id,
-            port=host_port,
-            name=cleaned_name,
-            description=cleaned_description,
-            expected_input_json=validated_expected_input_json,
-            tunnel_url=tunnel_url,
-        )
+        # Register either as single container or multiple instances
+        if len(instances) == 1:
+            inst = instances[0]
+            register_container(
+                model_id=model_id,
+                version=version,
+                container_id=inst["container_id"],
+                port=inst["port"],
+                name=cleaned_name,
+                description=cleaned_description,
+                expected_input_json=validated_expected_input_json,
+                tunnel_url=tunnel_url,
+            )
+        else:
+            # Use register_container_instance to add instances per version
+            for inst in instances:
+                register_container_instance(
+                    model_id=model_id,
+                    container_id=inst["container_id"],
+                    port=inst["port"],
+                    version=version,
+                    instance_index=inst["instance_index"],
+                    name=cleaned_name,
+                    description=cleaned_description,
+                    expected_input_json=validated_expected_input_json,
+                    tunnel_url=tunnel_url,
+                )
+
+        # Persist configuration metadata in registry under model -> versions -> <version> -> config
+        try:
+            data = load_registry()
+            models = data.setdefault("models", {})
+            entry = models.get(model_id)
+            model_version = version or "v1"
+            if isinstance(entry, dict):
+                versions = entry.get("versions") if isinstance(entry.get("versions"), dict) else None
+                if versions and model_version in versions:
+                    version_entry = versions[model_version]
+                else:
+                    # fallback to legacy shape
+                    version_entry = entry
+                cfg = {
+                    "load_balancing": {"replicas": int(replicas or 1), "strategy": load_balancing_strategy},
+                    "caching": {"enabled": bool(enable_caching), "ttl": int(cache_ttl) if cache_ttl is not None else None},
+                    "batching": {"enabled": bool(enable_batching), "batch_size": int(batch_size) if batch_size else None, "batch_timeout_ms": int(batch_timeout) if batch_timeout else None},
+                }
+                version_entry["config"] = cfg
+                save_registry(data)
+        except Exception:
+            # Non-critical: don't block deployment if registry saving fails
+            pass
 
         success_html = upload_success_response(
             model_id=model_id,
@@ -330,6 +398,223 @@ async def predict_ui(model_id: str | None = None, version: str | None = None) ->
         ),
         show_sidebar=False,
     )
+
+
+@router.get("/model/{model_id}/control", response_class=HTMLResponse)
+async def model_control_page(model_id: str, version: str | None = None) -> str:
+    """Render a minimal control center for a specific model."""
+    try:
+        data = load_registry()
+        # Resolve versioned entry if available
+        model_entry, resolved_version, _ = resolve_model_version_entry(
+            model_id, version=version, registry=data
+        )
+        html = model_control_center_page(model_id, model_entry, resolved_version)
+    except Exception:
+        html = model_control_center_page(model_id, None, version)
+
+    return base_layout(f"PRISM - Control {model_id}", html, show_sidebar=True)
+
+
+@router.get("/api/model-metrics")
+async def api_model_metrics(model_id: str) -> JSONResponse:
+    """Return real metrics for the model from the metrics registry.
+    
+    Returns:
+        JSON with keys:
+        - labels: Time labels (1, 2, 3, ...)
+        - requests: Request counts over time
+        - latency: Latency values in milliseconds
+        - throughput: Requests per second
+        - error_rate: Error percentage (optional)
+        - cpu_usage: CPU percentage (optional)
+        - memory_usage: Memory in MB (optional)
+    """
+    metrics_registry = MetricsRegistry.get_instance()
+    metrics = metrics_registry.get_metrics(model_id)
+    
+    if metrics is None:
+        # Model not in registry, return empty metrics with placeholder data
+        return JSONResponse({
+            "labels": [str(i + 1) for i in range(20)],
+            "requests": [0] * 20,
+            "latency": [0.0] * 20,
+            "throughput": [0.0] * 20,
+            "error_rate": [0.0] * 20,
+        })
+    
+    response_data = {
+        "labels": metrics.labels,
+        "requests": metrics.requests,
+        "latency": metrics.latency,
+        "throughput": metrics.throughput,
+    }
+    
+    if metrics.error_rate is not None:
+        response_data["error_rate"] = metrics.error_rate
+    if metrics.cpu_usage is not None:
+        response_data["cpu_usage"] = metrics.cpu_usage
+    if metrics.memory_usage is not None:
+        response_data["memory_usage"] = metrics.memory_usage
+    
+    return JSONResponse(response_data)
+
+
+@router.post("/api/record-metrics")
+async def record_metrics(
+    model_id: str = Form(...),
+    latency_ms: float = Form(...),
+    success: bool = Form(True),
+    cpu_percent: float | None = Form(None),
+    memory_mb: float | None = Form(None),
+) -> JSONResponse:
+    """Record a single request metric for a model.
+    
+    Args:
+        model_id: Model identifier
+        latency_ms: Request latency in milliseconds
+        success: Whether request succeeded
+        cpu_percent: CPU usage percentage (optional)
+        memory_mb: Memory usage in MB (optional)
+        
+    Returns:
+        JSON acknowledgment
+    """
+    metrics_registry = MetricsRegistry.get_instance()
+    metrics_registry.record_request(
+        model_id=model_id,
+        latency_ms=latency_ms,
+        success=success,
+        cpu_percent=cpu_percent,
+        memory_mb=memory_mb,
+    )
+    return JSONResponse({"status": "recorded"})
+
+
+@router.post("/api/register-model-metrics")
+async def register_model_metrics(
+    model_id: str = Form(...),
+    container_id: str = Form(...),
+) -> JSONResponse:
+    """Register a model for metrics tracking.
+    
+    Args:
+        model_id: Model identifier
+        container_id: Docker container ID
+        
+    Returns:
+        JSON acknowledgment
+    """
+    metrics_registry = MetricsRegistry.get_instance()
+    metrics_registry.register_model(model_id, container_id)
+    return JSONResponse({"status": "registered", "model_id": model_id})
+
+
+@router.get("/api/metrics-config")
+async def get_metrics_config(model_id: str) -> JSONResponse:
+    """Get current metrics configuration for a model.
+    
+    This endpoint returns the current metrics settings that can be adjusted
+    from the model control center. Users can tune:
+    - Display window size (number of data points)
+    - Update interval
+    - Thresholds for warnings/alerts
+    - Which metrics to display
+    
+    Args:
+        model_id: Model identifier
+        
+    Returns:
+        JSON with current configuration
+    """
+    # Load from registry if available
+    try:
+        data = load_registry()
+        model_entry, _, _ = resolve_model_version_entry(model_id, registry=data)
+        config = model_entry.get("metrics_config", {})
+    except Exception:
+        config = {}
+    
+    # Provide sensible defaults
+    return JSONResponse({
+        "model_id": model_id,
+        "window_size": config.get("window_size", 60),  # 60 data points
+        "update_interval_ms": config.get("update_interval_ms", 1000),  # 1 second
+        "display_metrics": config.get("display_metrics", ["latency", "throughput", "requests", "error_rate"]),
+        "latency_warning_threshold_ms": config.get("latency_warning_threshold_ms", 1000),
+        "error_rate_warning_threshold_pct": config.get("error_rate_warning_threshold_pct", 5.0),
+        "chart_colors": config.get("chart_colors", {
+            "requests": "#000000",
+            "latency": "#ff9900",
+            "throughput": "#0066ff",
+            "error_rate": "#ff0000",
+            "cpu_usage": "#00cc00",
+            "memory_usage": "#ff6600",
+        }),
+    })
+
+
+@router.post("/api/metrics-config")
+async def update_metrics_config(
+    model_id: str = Form(...),
+    window_size: int | None = Form(None),
+    update_interval_ms: int | None = Form(None),
+    latency_warning_threshold_ms: int | None = Form(None),
+    error_rate_warning_threshold_pct: float | None = Form(None),
+) -> JSONResponse:
+    """Update metrics configuration for a model from the control center.
+    
+    Args:
+        model_id: Model identifier
+        window_size: Number of data points to display (1-600)
+        update_interval_ms: How often to fetch metrics (100-10000 ms)
+        latency_warning_threshold_ms: Warn if latency exceeds this (ms)
+        error_rate_warning_threshold_pct: Warn if error rate exceeds this (%)
+        
+    Returns:
+        JSON with updated configuration
+    """
+    try:
+        # Validate inputs
+        if window_size is not None:
+            window_size = max(1, min(600, int(window_size)))
+        if update_interval_ms is not None:
+            update_interval_ms = max(100, min(10000, int(update_interval_ms)))
+        if latency_warning_threshold_ms is not None:
+            latency_warning_threshold_ms = max(1, int(latency_warning_threshold_ms))
+        if error_rate_warning_threshold_pct is not None:
+            error_rate_warning_threshold_pct = max(0.0, min(100.0, float(error_rate_warning_threshold_pct)))
+        
+        # Load and update registry
+        data = load_registry()
+        model_entry, resolved_version, _ = resolve_model_version_entry(
+            model_id, registry=data
+        )
+        
+        # Build metrics config
+        metrics_config = model_entry.get("metrics_config", {})
+        if window_size is not None:
+            metrics_config["window_size"] = window_size
+        if update_interval_ms is not None:
+            metrics_config["update_interval_ms"] = update_interval_ms
+        if latency_warning_threshold_ms is not None:
+            metrics_config["latency_warning_threshold_ms"] = latency_warning_threshold_ms
+        if error_rate_warning_threshold_pct is not None:
+            metrics_config["error_rate_warning_threshold_pct"] = error_rate_warning_threshold_pct
+        
+        model_entry["metrics_config"] = metrics_config
+        save_registry(data)
+        
+        return JSONResponse({
+            "status": "updated",
+            "model_id": model_id,
+            "config": metrics_config,
+        })
+    except Exception as e:
+        return JSONResponse({
+            "status": "error",
+            "error": str(e),
+        }, status_code=400)
 
 
 @router.post("/predict-result", response_class=HTMLResponse)

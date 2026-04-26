@@ -14,7 +14,7 @@ if str(ROOT) not in sys.path:
 def test_health_monitor_endpoint_returns_snapshot(monkeypatch):
     expected_snapshot = {
         "running": True,
-        "interval_seconds": 15,
+        "interval_seconds": 10,
         "last_cycle": {
             "scanned": 2,
             "restarted": 1,
