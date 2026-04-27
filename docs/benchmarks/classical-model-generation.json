@@ -1,0 +1,107 @@
+{
+  "seed": 42,
+  "generated_models": [
+    {
+      "model_id": "logistic_regression",
+      "pkl_path": "model_store/logistic_regression.pkl",
+      "onnx_path": "model_store/logistic_regression.onnx",
+      "sample_input": [
+        [
+          -2.6451079845428467,
+          -1.1585519313812256,
+          -0.3723190426826477,
+          2.3050708770751953
+        ]
+      ],
+      "sample_sklearn_prediction": [
+        2
+      ],
+      "note": "Multiclass logistic regression with standard scaling."
+    },
+    {
+      "model_id": "knn_classifier",
+      "pkl_path": "model_store/knn_classifier.pkl",
+      "onnx_path": "model_store/knn_classifier.onnx",
+      "sample_input": [
+        [
+          -2.040363311767578,
+          1.6503033638000488,
+          0.547264814376831,
+          -2.2193009853363037
+        ]
+      ],
+      "sample_sklearn_prediction": [
+        0
+      ],
+      "note": "K-nearest neighbors classifier (k=5)."
+    },
+    {
+      "model_id": "svm_classifier",
+      "pkl_path": "model_store/svm_classifier.pkl",
+      "onnx_path": "model_store/svm_classifier.onnx",
+      "sample_input": [
+        [
+          -0.6686239838600159,
+          4.486741065979004,
+          1.2748750448226929,
+          1.096705675125122
+        ]
+      ],
+      "sample_sklearn_prediction": [
+        1
+      ],
+      "note": "RBF-kernel support vector classifier."
+    },
+    {
+      "model_id": "random_forest_classifier",
+      "pkl_path": "model_store/random_forest_classifier.pkl",
+      "onnx_path": "model_store/random_forest_classifier.onnx",
+      "sample_input": [
+        [
+          1.7569010257720947,
+          -1.8452208042144775,
+          -0.2831389009952545,
+          -2.738358974456787
+        ]
+      ],
+      "sample_sklearn_prediction": [
+        1
+      ],
+      "note": "Random forest classifier."
+    },
+    {
+      "model_id": "gaussian_nb",
+      "pkl_path": "model_store/gaussian_nb.pkl",
+      "onnx_path": "model_store/gaussian_nb.onnx",
+      "sample_input": [
+        [
+          -2.1788268089294434,
+          1.5997878313064575,
+          -0.9077562093734741,
+          1.6124444007873535
+        ]
+      ],
+      "sample_sklearn_prediction": [
+        0
+      ],
+      "note": "Gaussian Naive Bayes classifier."
+    },
+    {
+      "model_id": "kmeans",
+      "pkl_path": "model_store/kmeans.pkl",
+      "onnx_path": "model_store/kmeans.onnx",
+      "sample_input": [
+        [
+          2.6289241313934326,
+          4.536099910736084,
+          -9.158544540405273,
+          7.939077854156494
+        ]
+      ],
+      "sample_sklearn_prediction": [
+        1
+      ],
+      "note": "KMeans clustering model (3 clusters)."
+    }
+  ]
+}

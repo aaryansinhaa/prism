@@ -123,3 +123,80 @@ poetry run python scripts/generate_benchmark_figures.py \
   --primary-report latest
 ```
 
+---
+
+## 7. Classical ONNX Model Benchmarks (PRISM API Pipeline)
+
+This run benchmarks PRISM inference on multiple classical models served through the existing ONNX path (no new runtime adapters).
+
+- Model generation script: `scripts/create_models.py`
+- Benchmark script: `scripts/benchmark_classical_models.py`
+- Report artifact: `docs/benchmarks/classical-models-latest.json`
+
+Commands used:
+
+```bash
+poetry run python scripts/create_models.py
+poetry run python scripts/benchmark_classical_models.py \
+  --iterations 120 \
+  --output-json docs/benchmarks/classical-models-latest.json
+```
+
+### Models Covered
+
+1. `logistic_regression`
+2. `knn_classifier`
+3. `kmeans`
+4. `svm_classifier`
+5. `random_forest_classifier`
+6. `gaussian_nb`
+
+### Latency / Throughput Results
+
+| Model | Avg Latency (ms) | P95 (ms) | Throughput (rps) | Max Abs Deviation |
+| --- | ---: | ---: | ---: | ---: |
+| `gaussian_nb` | 11.0614 | 26.5580 | 90.40 | 0.0 |
+| `kmeans` | 9.7589 | 13.2453 | 102.47 | 0.0 |
+| `knn_classifier` | 10.1689 | 14.8328 | 98.34 | 0.0 |
+| `logistic_regression` | 7.9149 | 11.1320 | 126.34 | 0.0 |
+| `random_forest_classifier` | 9.1507 | 18.1315 | 109.28 | 0.0 |
+| `svm_classifier` | 6.2590 | 8.2276 | 159.76 | 0.0 |
+
+### Exact Input / Output Samples and Deviation
+
+Each sample below is the exact JSON payload sent to `POST /models/{model_id}/predict` and the returned response for that payload.
+
+- `gaussian_nb`
+  - Input: `{"input": [[0.5532605648040771, 0.21760061383247375, -0.05798998847603798, -2.3189361095428467]]}`
+  - Output: `{"predictions": {"output_label": [1], "output_probability": [{"0": 0.42018160223960876, "1": 0.564511239528656, "2": 0.015307186171412468}]}}`
+  - Deviation (direct ONNX vs full PRISM pipeline): `compared_values=4`, `max_abs_diff=0.0`, `mean_abs_diff=0.0`, `exact_match=true`
+
+- `kmeans`
+  - Input: `{"input": [[1.8267565965652466, -3.07833194732666, 0.9580639600753784, 0.0696372240781784]]}`
+  - Output: `{"predictions": {"label": [0], "scores": [[13.505372047424316, 15.882755279541016, 15.406950950622559]]}}`
+  - Deviation: `compared_values=4`, `max_abs_diff=0.0`, `mean_abs_diff=0.0`, `exact_match=true`
+
+- `knn_classifier`
+  - Input: `{"input": [[0.0341927669942379, 1.3597475290298462, 1.224721074104309, -0.5103070735931396]]}`
+  - Output: `{"predictions": {"output_label": [0], "output_probability": [{"0": 1.0, "1": 0.0, "2": 0.0}]}}`
+  - Deviation: `compared_values=4`, `max_abs_diff=0.0`, `mean_abs_diff=0.0`, `exact_match=true`
+
+- `logistic_regression`
+  - Input: `{"input": [[0.001230153371579945, 0.2987455427646637, -0.27413785457611084, -0.8905918598175049]]}`
+  - Output: `{"predictions": {"output_label": [1], "output_probability": [{"0": 0.4413463771343231, "1": 0.5483062267303467, "2": 0.010347440838813782}]}}`
+  - Deviation: `compared_values=4`, `max_abs_diff=0.0`, `mean_abs_diff=0.0`, `exact_match=true`
+
+- `random_forest_classifier`
+  - Input: `{"input": [[-0.37002477049827576, 0.9940786957740784, 0.4158574938774109, -0.6181637048721313]]}`
+  - Output: `{"predictions": {"output_label": [0], "output_probability": [{"0": 0.8942318558692932, "1": 0.10106945037841797, "2": 0.004698507487773895}]}}`
+  - Deviation: `compared_values=4`, `max_abs_diff=0.0`, `mean_abs_diff=0.0`, `exact_match=true`
+
+- `svm_classifier`
+  - Input: `{"input": [[1.1012624502182007, 0.3384312689304352, -0.5399715304374695, -1.2602418661117554]]}`
+  - Output: `{"predictions": {"label": [1], "probabilities": [[1.1936345100402832, 2.2034807205200195, -0.24901126325130463]]}}`
+  - Deviation: `compared_values=4`, `max_abs_diff=0.0`, `mean_abs_diff=0.0`, `exact_match=true`
+
+### Deviation Conclusion
+
+For all six classical models, direct model outputs and full PRISM pipeline outputs were numerically identical for benchmarked payloads (`max_abs_diff = 0.0` across all runs), indicating no observed prediction deviation through the PRISM request pipeline.
+

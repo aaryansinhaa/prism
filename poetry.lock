@@ -2509,6 +2509,22 @@ files = [
 ]
 
 [[package]]
+name = "skl2onnx"
+version = "1.20.0"
+description = "Convert scikit-learn models to ONNX"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "skl2onnx-1.20.0-py3-none-any.whl", hash = "sha256:30cac34803d1776c14b336ae945e48ef28debfc339215acde1cc04b963ed3f7b"},
+    {file = "skl2onnx-1.20.0.tar.gz", hash = "sha256:c74ea827d92ba186fe659695e8fc989cd97bfc320edce3d32b9936a5878da10a"},
+]
+
+[package.dependencies]
+onnx = ">=1.2.1"
+scikit-learn = ">=1.1"
+
+[[package]]
 name = "starlette"
 version = "0.52.1"
 description = "The little ASGI library that shines."
@@ -2907,4 +2923,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "f006cc0dc5619fb44e523efa0645059ed8bbc481df94b56aba6a95906c81f4df"
+content-hash = "e3c7f7c2ce45b575451f741233687146cf05a845a310d1f31677d4c9536d8af1"
