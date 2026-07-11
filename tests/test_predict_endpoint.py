@@ -1,4 +1,3 @@
-import os
 import sys
 from pathlib import Path
 
@@ -11,10 +10,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
-def test_predict_fallback_or_model():
+def test_predict_fallback_or_model(monkeypatch):
     """Call `/predict` and assert a 200 JSON response with 'predictions'."""
     model_path = str(ROOT / "model_store" / "linear_regression.onnx")
-    os.environ["MODEL_PATH"] = model_path
+    monkeypatch.setenv("MODEL_PATH", model_path)
 
     payload = {"input": [1, 2, 3]}
     with TestClient(app) as client:
@@ -25,7 +24,7 @@ def test_predict_fallback_or_model():
     assert "predictions" in data
 
 
-def test_predict_shape_handling():
+def test_predict_shape_handling(monkeypatch):
     """Verify that 1-D numeric lists are handled by the runtime for ONNX.
 
     If an ONNX model is present and expects shape (N,1), this test ensures
@@ -33,7 +32,7 @@ def test_predict_shape_handling():
     raising a 4xx/5xx.
     """
     model_path = str(ROOT / "model_store" / "linear_regression.onnx")
-    os.environ["MODEL_PATH"] = model_path
+    monkeypatch.setenv("MODEL_PATH", model_path)
 
     payload = {"input": [1.0, 2.0, 3.0]}
     with TestClient(app) as client:

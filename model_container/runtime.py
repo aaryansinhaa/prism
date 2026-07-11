@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 import os
 import pickle
 from pathlib import Path
@@ -99,11 +100,8 @@ def _predict_sklearn(model: Any, features: np.ndarray) -> dict[str, Any]:
     return {"predictions": predictions}
 
 
-app = FastAPI(title="PRISM Model Container")
-
-
-@app.on_event("startup")
-def startup_load_model() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     model_path_raw = os.environ.get("MODEL_PATH")
     if not model_path_raw:
         raise RuntimeError("MODEL_PATH env var is required")
@@ -116,6 +114,10 @@ def startup_load_model() -> None:
     app.state.model = model
     app.state.model_type = model_type
     app.state.model_path = str(model_path)
+    yield
+
+
+app = FastAPI(title="PRISM Model Container", lifespan=lifespan)
 
 
 @app.get("/health")

@@ -111,8 +111,7 @@ Stop detached server:
 poetry run prism stop
 ```
 
-> Tip: run `pkill -f "app.core.tunnel_worker" || true
-rm -rf /tmp/prism/tunnels` before uploading a model to ensure no existing tunnel is working in the background to interfere with prism's tunneling. 
+> Tip: run `pkill -f "app.core.tunnel_worker" || true && rm -rf /tmp/prism/tunnels` before uploading a model to ensure no existing tunnel is working in the background to interfere with prism's tunneling. 
 ### 2) Open the dashboard
 
 Visit:

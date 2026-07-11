@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  prism:
+    build: .
+    # Using host network mode allows the containerized PRISM control plane to easily connect 
+    # to the inference containers it spawns on localhost ports.
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - PRISM_ENABLE_HEALTH_MONITOR=true

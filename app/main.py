@@ -1,6 +1,7 @@
 import asyncio
 import os
 
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from app.routing import frontend, health, inference, models, predict, registry
@@ -9,11 +10,6 @@ from runtime.model_loaders import load_model
 
 # Load environment variables from .env file
 load_dotenv()
-
-app = FastAPI()
-
-_health_monitor_stop_event: asyncio.Event | None = None
-_health_monitor_task: asyncio.Task | None = None
 
 
 def _health_monitor_enabled() -> bool:
@@ -25,15 +21,9 @@ def _health_monitor_enabled() -> bool:
     return True
 
 
-@app.on_event("startup")
-async def load_runtime_model() -> None:
-    """Load model at application startup.
-
-    The loader uses `MODEL_PATH` env var when explicitly provided.
-    If not configured, `/predict` remains unavailable until a model is loaded.
-    """
-    import os
-
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Load model at application startup and manage health monitor lifecycle."""
     model_path = os.environ.get("MODEL_PATH")
     if not model_path:
         predict.set_loaded_model(None)
@@ -60,11 +50,7 @@ async def load_runtime_model() -> None:
         _health_monitor_stop_event = None
         _health_monitor_task = None
 
-
-@app.on_event("shutdown")
-async def stop_health_monitor() -> None:
-    global _health_monitor_stop_event
-    global _health_monitor_task
+    yield
 
     if _health_monitor_stop_event is not None:
         _health_monitor_stop_event.set()
@@ -78,6 +64,12 @@ async def stop_health_monitor() -> None:
             _health_monitor_task = None
 
     _health_monitor_stop_event = None
+
+
+app = FastAPI(lifespan=lifespan)
+
+_health_monitor_stop_event: asyncio.Event | None = None
+_health_monitor_task: asyncio.Task | None = None
 
 
 # Include modular routers
